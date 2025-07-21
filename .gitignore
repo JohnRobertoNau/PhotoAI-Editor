@@ -1,0 +1,257 @@
+# 🧠 AI Photo Editor - GitIgnore
+
+# ==============================================================================
+# FIȘIERE AI MODEL (FOARTE MARI - NU LE URCA PE GITHUB!)
+# ==============================================================================
+
+# Modele Hugging Face (cache-ul local)
+.cache/
+huggingface_hub/
+transformers_cache/
+diffusers_cache/
+
+# Modele PyTorch (.pth, .pt files)
+*.pth
+*.pt
+*.bin
+*.safetensors
+
+# Modele ONNX
+*.onnx
+
+# Checkpoints și snapshots
+checkpoint-*/
+snapshots/
+models/
+weights/
+
+# Cache-uri pentru modele AI
+**/models/pytorch_model.bin
+**/models/model.safetensors
+**/models/diffusion_pytorch_model.safetensors
+**/models/diffusion_pytorch_model.bin
+
+# ==============================================================================
+# PYTHON STANDARD
+# ==============================================================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+ai-editor-env/
+
+# ==============================================================================
+# FIȘIERE IMAGINI DE TEST (OPȚIONAL - POȚI SĂ LE ȚII MICI)
+# ==============================================================================
+
+# Imagini mari de test (> 5MB)
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+*.webp
+!example_small.jpg
+!demo.png
+
+# Exceptează imaginile mici pentru demo
+!assets/demo/*.png
+!assets/demo/*.jpg
+!docs/images/*.png
+!docs/images/*.jpg
+
+# ==============================================================================
+# DEVELOPMENT TOOLS
+# ==============================================================================
+
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+# PyCharm
+.idea/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# ==============================================================================
+# LOGS ȘI TEMPORARY FILES
+# ==============================================================================
+
+# Logs
+*.log
+logs/
+log/
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# ==============================================================================
+# OPERATING SYSTEM
+# ==============================================================================
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Linux
+*~
+
+# ==============================================================================
+# CONFIGURĂRI LOCALE (SECURITATE)
+# ==============================================================================
+
+# Chei API și configurări secrete
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+config/secrets.py
+secrets.json
+api_keys.txt
+
+# ==============================================================================
+# CACHE ȘI DATABASES LOCALE
+# ==============================================================================
+
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Cache directories
+.cache/
+cache/
+__pycache__/
+
+# ==============================================================================
+# SPECIFICUL PROIECTULUI AI PHOTO EDITOR
+# ==============================================================================
+
+# Output-uri generate
+output/
+results/
+generated_images/
+processed_images/
+
+# Backup-uri
+backup/
+backups/
+*.backup
+
+# Test files mari
+test_images_large/
+sample_images_hd/
+
+# ==============================================================================
+# COMENTARII UTILE
+# ==============================================================================
+
+# NOTĂ: Modelele AI sunt de obicei de 1-10GB+
+# GitHub are limită de 100MB per fișier
+# GitHub LFS (Large File Storage) costă $ pentru storage
+# Soluția: Modelele se descarcă automat din Hugging Face la prima rulare
+
+# Pentru a vedea ce fișiere mari ai:
+# du -sh * | sort -hr
+
+# Pentru a găsi fișiere > 50MB:
+# find . -type f -size +50M -not -path "./.git/*" | head -20

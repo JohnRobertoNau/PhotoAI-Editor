@@ -1,0 +1,30 @@
+# AI Photo Editor - Requirements
+# Core dependencies
+customtkinter>=5.0.0
+Pillow>=10.0.0
+opencv-python>=4.8.0
+numpy>=1.24.0
+torch>=2.0.0
+torchvision>=0.15.0
+
+# AI Models
+transformers>=4.30.0
+diffusers>=0.20.0
+accelerate>=0.20.0
+
+# Background removal
+rembg>=2.0.0
+onnxruntime>=1.15.0
+
+# Image enhancement
+realesrgan>=0.3.0
+basicsr>=1.4.0
+
+# Drag and drop support
+tkinterdnd2>=0.3.0
+
+# Utilities
+scikit-learn>=1.3.0
+scikit-image>=0.21.0
+matplotlib>=3.7.0
+tqdm>=4.65.0
