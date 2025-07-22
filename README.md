@@ -206,15 +206,6 @@ python3 -c "import tkinter; print('✅ GUI OK')"
 
 Aplicația detectează automat ce dependențe sunt disponibile și se adaptează.
 
-## 🤝 Contribuții
-
-Contribuțiile sunt binevenite! Pentru modificări majore:
-
-1. Fork repository-ul
-2. Creează o branch pentru feature
-3. Commit modificările
-4. Push și creează Pull Request
-
-## 📄 Licența
-
-MIT License
+## How to use it
+- Enter venv: source venv/bin/activate
+- run main: python3 main.py

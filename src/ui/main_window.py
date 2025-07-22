@@ -142,7 +142,7 @@ class PhotoEditorApp:
         reset_btn.pack(side="left", padx=5, pady=5)
     
     def create_control_panel(self, parent):
-        """Creează panelul de controale AI."""
+        """Creează panelul de controale AI și ajustare imagine."""
         control_frame = ctk.CTkFrame(parent)
         control_frame.pack(side="left", fill="y", padx=(0, 10))
 
@@ -150,7 +150,71 @@ class PhotoEditorApp:
         title = ctk.CTkLabel(control_frame, text="AI Operations", font=("Arial", 16, "bold"))
         title.pack(pady=10)
 
-        # Buton Upscale
+        # --- Sliders pentru luminozitate, contrast, saturatie ---
+        from PIL import ImageEnhance
+        self._slider_original = None  # Pentru a păstra imaginea originală pentru ajustări
+
+
+        def on_slider_release(event=None):
+            if self._slider_original is None and self.current_image:
+                self._slider_original = self.current_image.copy()
+            if self._slider_original is None:
+                return
+            img = self._slider_original.copy()
+            brightness = brightness_slider.get()
+            img = ImageEnhance.Brightness(img).enhance(brightness)
+            contrast = contrast_slider.get()
+            img = ImageEnhance.Contrast(img).enhance(contrast)
+            saturation = saturation_slider.get()
+            img = ImageEnhance.Color(img).enhance(saturation)
+            self.current_image = img
+            self.display_image()
+
+        def on_slider_start(event=None):
+            if self.current_image:
+                self._slider_original = self.current_image.copy()
+
+
+        def reset_sliders():
+            brightness_slider.set(1.0)
+            contrast_slider.set(1.0)
+            saturation_slider.set(1.0)
+            self._slider_original = None
+
+        self._reset_sliders_ref = reset_sliders  # referință pentru reset global
+
+        sliders_label = ctk.CTkLabel(control_frame, text="Adjust Image", font=("Arial", 13, "bold"))
+        sliders_label.pack(pady=(10, 0))
+
+
+        brightness_slider = ctk.CTkSlider(control_frame, from_=0.2, to=2.0, number_of_steps=36, width=140)
+        brightness_slider.set(1.0)
+        brightness_label = ctk.CTkLabel(control_frame, text="Brightness")
+        brightness_label.pack(pady=(8,0))
+        brightness_slider.pack(pady=(0,0))
+        brightness_slider.bind("<ButtonPress-1>", on_slider_start)
+        brightness_slider.bind("<ButtonRelease-1>", on_slider_release)
+
+        contrast_slider = ctk.CTkSlider(control_frame, from_=0.2, to=2.0, number_of_steps=36, width=140)
+        contrast_slider.set(1.0)
+        contrast_label = ctk.CTkLabel(control_frame, text="Contrast")
+        contrast_label.pack(pady=(8,0))
+        contrast_slider.pack(pady=(0,0))
+        contrast_slider.bind("<ButtonPress-1>", on_slider_start)
+        contrast_slider.bind("<ButtonRelease-1>", on_slider_release)
+
+        saturation_slider = ctk.CTkSlider(control_frame, from_=0.0, to=2.0, number_of_steps=40, width=140)
+        saturation_slider.set(1.0)
+        saturation_label = ctk.CTkLabel(control_frame, text="Saturation")
+        saturation_label.pack(pady=(8,0))
+        saturation_slider.pack(pady=(0,8))
+        saturation_slider.bind("<ButtonPress-1>", on_slider_start)
+        saturation_slider.bind("<ButtonRelease-1>", on_slider_release)
+
+        reset_btn2 = ctk.CTkButton(control_frame, text="Reset Adjustments", command=reset_sliders, width=140)
+        reset_btn2.pack(pady=(0, 10))
+
+        # --- Restul butoanelor AI ---
         upscale_btn = ctk.CTkButton(
             control_frame,
             text="Upscale Image",
@@ -159,7 +223,6 @@ class PhotoEditorApp:
         )
         upscale_btn.pack(pady=5)
 
-        # Buton Remove Background
         bg_remove_btn = ctk.CTkButton(
             control_frame,
             text="Remove Background",
@@ -168,7 +231,6 @@ class PhotoEditorApp:
         )
         bg_remove_btn.pack(pady=5)
 
-        # Buton Background Replace
         bg_replace_btn = ctk.CTkButton(
             control_frame,
             text="Replace Background",
@@ -177,7 +239,6 @@ class PhotoEditorApp:
         )
         bg_replace_btn.pack(pady=5)
 
-        # Buton Apply Filter
         filter_btn = ctk.CTkButton(
             control_frame,
             text="Apply Filter",
@@ -186,7 +247,6 @@ class PhotoEditorApp:
         )
         filter_btn.pack(pady=5)
 
-        # Buton Generative Fill
         gen_fill_btn = ctk.CTkButton(
             control_frame,
             text="Generative Fill",
@@ -195,7 +255,6 @@ class PhotoEditorApp:
         )
         gen_fill_btn.pack(pady=5)
 
-        # Buton Image Recognition
         recognize_btn = ctk.CTkButton(
             control_frame,
             text="Recognize Image",
@@ -204,7 +263,6 @@ class PhotoEditorApp:
         )
         recognize_btn.pack(pady=5)
 
-        # Progress bar
         self.progress = ctk.CTkProgressBar(control_frame)
         self.progress.pack(pady=20, padx=10, fill="x")
         self.progress.set(0)
@@ -503,8 +561,31 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
         self.run_ai_operation(self.bg_remover.remove_background, "Remove Background")
     
     def generative_fill(self):
-        """Aplică generative fill."""
-        self.run_ai_operation(self.gen_fill.fill, "Generative Fill")
+        """Aplică generative fill doar pe background dacă acesta a fost eliminat (imagine RGBA cu transparență)."""
+        def fill_background_only(image):
+            # Dacă imaginea are canal alpha (fundal eliminat)
+            if image.mode == "RGBA":
+                import numpy as np
+                from PIL import Image
+                # Separă canalele
+                arr = np.array(image)
+                alpha = arr[..., 3]
+                # Creează mască pentru background (transparență)
+                mask = (alpha == 0)
+                # Generează un background nou folosind generative fill pe toată imaginea
+                gen_filled = self.gen_fill.fill(image.convert("RGB"))
+                gen_filled = gen_filled.convert("RGBA").resize(image.size)
+                gen_arr = np.array(gen_filled)
+                # Înlocuiește doar pixelii transparenți cu cei generați
+                result_arr = arr.copy()
+                result_arr[mask] = gen_arr[mask]
+                result = Image.fromarray(result_arr, mode="RGBA")
+                # Dacă vrei să păstrezi imaginea RGB, convertește la RGB
+                return result.convert("RGB")
+            else:
+                # Dacă nu există transparență, aplică generative fill pe toată imaginea
+                return self.gen_fill.fill(image)
+        self.run_ai_operation(fill_background_only, "Generative Fill")
     
     def recognize_image(self):
         """Recunoaște conținutul imaginii."""
@@ -547,9 +628,12 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             messagebox.showwarning("Warning", "No image to save!")
     
     def reset_image(self):
-        """Resetează imaginea la starea originală."""
+        """Resetează imaginea la starea originală și resetează slider-ele de ajustare."""
         if self.original_image:
             self.current_image = self.original_image.copy()
+            # Resetează și slider-ele dacă există
+            if hasattr(self, '_reset_sliders_ref') and callable(self._reset_sliders_ref):
+                self._reset_sliders_ref()
             self.display_image()
             self.update_info("Image has been reset to original state.")
         else:
