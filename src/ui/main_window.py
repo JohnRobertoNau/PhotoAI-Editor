@@ -46,7 +46,7 @@ class PhotoEditorApp:
             self.img_recognition = ImageRecognition()
             self.image_processor = ImageProcessor()
         except Exception as e:
-            messagebox.showerror("Eroare", f"Nu s-au putut încărca modelele AI: {e}")
+            messagebox.showerror("Error", f"Could not load AI models: {e}")
     
     def create_widgets(self):
         """Creează elementele UI."""
@@ -78,7 +78,7 @@ class PhotoEditorApp:
         # Buton pentru încărcare imagine
         load_btn = ctk.CTkButton(
             toolbar, 
-            text="Încarcă Imagine",
+            text="Load Image",
             command=self.load_image,
             width=120
         )
@@ -87,7 +87,7 @@ class PhotoEditorApp:
         # Buton pentru salvare
         save_btn = ctk.CTkButton(
             toolbar,
-            text="Salvează",
+            text="Save",
             command=self.save_image,
             width=100
         )
@@ -106,29 +106,38 @@ class PhotoEditorApp:
         """Creează panelul de controale AI."""
         control_frame = ctk.CTkFrame(parent)
         control_frame.pack(side="left", fill="y", padx=(0, 10))
-        
+
         # Titlu
-        title = ctk.CTkLabel(control_frame, text="Operații AI", font=("Arial", 16, "bold"))
+        title = ctk.CTkLabel(control_frame, text="AI Operations", font=("Arial", 16, "bold"))
         title.pack(pady=10)
-        
+
         # Buton Upscale
         upscale_btn = ctk.CTkButton(
             control_frame,
-            text="Upscale Imagine",
+            text="Upscale Image",
             command=self.upscale_image,
             width=150
         )
         upscale_btn.pack(pady=5)
-        
+
         # Buton Remove Background
         bg_remove_btn = ctk.CTkButton(
             control_frame,
-            text="Elimină Fundal",
+            text="Remove Background",
             command=self.remove_background,
             width=150
         )
         bg_remove_btn.pack(pady=5)
-        
+
+        # Buton Background Replace
+        bg_replace_btn = ctk.CTkButton(
+            control_frame,
+            text="Replace Background",
+            command=self.replace_background,
+            width=150
+        )
+        bg_replace_btn.pack(pady=5)
+
         # Buton Generative Fill
         gen_fill_btn = ctk.CTkButton(
             control_frame,
@@ -137,20 +146,72 @@ class PhotoEditorApp:
             width=150
         )
         gen_fill_btn.pack(pady=5)
-        
+
         # Buton Image Recognition
         recognize_btn = ctk.CTkButton(
             control_frame,
-            text="Recunoaște Imagine",
+            text="Recognize Image",
             command=self.recognize_image,
             width=150
         )
         recognize_btn.pack(pady=5)
-        
+
         # Progress bar
         self.progress = ctk.CTkProgressBar(control_frame)
         self.progress.pack(pady=20, padx=10, fill="x")
         self.progress.set(0)
+    def replace_background(self):
+        """Elimină fundalul și permite alegerea unui fundal nou pentru imagine."""
+        if not self.current_image:
+            messagebox.showwarning("Warning", "Please load an image first!")
+            return
+
+        def worker():
+            try:
+                self.progress.set(0.1)
+                self.update_info("Removing background...")
+                # Elimină fundalul (obține imagine RGBA cu transparență)
+                fg_img = self.bg_remover.remove_background(self.current_image)
+
+                self.progress.set(0.4)
+                self.update_info("Select a new background image...")
+                # Selectează imaginea de fundal
+                bg_path = filedialog.askopenfilename(
+                    title="Select background image",
+                    filetypes=[
+                        ("All Images", "*.png *.jpg *.jpeg *.bmp *.tiff *.webp"),
+                        ("PNG", "*.png"),
+                        ("JPEG", "*.jpg *.jpeg"),
+                        ("All files", "*.*")
+                    ]
+                )
+                if not bg_path:
+                    self.update_info("Background replace cancelled.")
+                    self.progress.set(0)
+                    return
+
+                bg_img = Image.open(bg_path).convert("RGBA")
+
+                # Redimensionează fundalul la dimensiunea foreground-ului
+                bg_img = bg_img.resize(fg_img.size, Image.LANCZOS)
+
+                # Asigură-te că foreground-ul e RGBA
+                if fg_img.mode != "RGBA":
+                    fg_img = fg_img.convert("RGBA")
+
+                # Combină foreground cu background
+                result = Image.alpha_composite(bg_img, fg_img)
+
+                self.current_image = result.convert("RGB")
+                self.display_image()
+                self.progress.set(1.0)
+                self.update_info("Background replaced successfully!")
+            except Exception as e:
+                messagebox.showerror("Error", f"Background replace failed: {e}")
+            finally:
+                self.progress.set(0)
+
+        threading.Thread(target=worker, daemon=True).start()
     
     def create_image_panel(self, parent):
         """Creează panelul pentru afișarea imaginii."""
@@ -160,7 +221,7 @@ class PhotoEditorApp:
         # Label pentru imagine cu suport drag and drop nativ
         self.image_label = ctk.CTkLabel(
             self.image_frame,
-            text="Trage o imagine aici sau apasă 'Încarcă Imagine'",
+            text="Drag an image here or click 'Load Image'",
             font=("Arial", 14),
             height=400
         )
@@ -173,7 +234,7 @@ class PhotoEditorApp:
         # Adaugă text explicativ pentru drag and drop
         self.drop_instructions = ctk.CTkLabel(
             self.image_frame,
-            text="📁 Poți copia calea unei imagini din Windows Explorer\nși o poți lipi aici cu Ctrl+V",
+            text="📁 You can copy an image path from Windows Explorer\nand paste it here with Ctrl+V",
             font=("Arial", 10),
             text_color="gray"
         )
@@ -185,14 +246,14 @@ class PhotoEditorApp:
         info_frame.pack(side="right", fill="y", padx=(10, 0))
         
         # Titlu
-        title = ctk.CTkLabel(info_frame, text="Informații", font=("Arial", 16, "bold"))
+        title = ctk.CTkLabel(info_frame, text="Information", font=("Arial", 16, "bold"))
         title.pack(pady=10)
         
         # Text widget pentru afișarea informațiilor
         self.info_text = ctk.CTkTextbox(info_frame, width=250, height=400)
         self.info_text.pack(pady=10, padx=10, fill="both", expand=True)
         
-        self.update_info("Încarcă o imagine pentru a vedea detaliile.")
+        self.update_info("Load an image to see details.")
     
     def setup_drag_drop(self):
         """Configurează funcționalitatea alternativă pentru încărcare imagine."""
@@ -224,14 +285,14 @@ class PhotoEditorApp:
                     if self.is_valid_image_file(clean_path):
                         self.load_image_from_path(clean_path)
                     else:
-                        self.update_info("⚠️ Path-ul din clipboard nu pare să fie o imagine validă")
+                        self.update_info("⚠️ The path from clipboard doesn't seem to be a valid image")
                 else:
-                    self.update_info("💡 Copiază path-ul unei imagini și apasă Ctrl+V")
+                    self.update_info("💡 Copy an image path and press Ctrl+V")
                     
         except tk.TclError:
-            self.update_info("📋 Clipboard-ul nu conține text")
+            self.update_info("📋 Clipboard doesn't contain text")
         except Exception as e:
-            self.update_info(f"❌ Eroare la citirea clipboard: {e}")
+            self.update_info(f"❌ Error reading clipboard: {e}")
     
     def add_quick_load_button(self):
         """Adaugă buton pentru încărcare rapidă."""
@@ -258,12 +319,12 @@ class PhotoEditorApp:
     def on_hover_enter(self, event):
         """Handler pentru când mouse-ul intră în zona de imagine."""
         if not self.current_image:
-            self.image_label.configure(text="🖼️ Apasă butonul 'Încarcă Imagine' sau folosește Ctrl+V")
+            self.image_label.configure(text="🖼️ Click 'Load Image' button or use Ctrl+V")
     
     def on_hover_leave(self, event):
         """Handler pentru când mouse-ul iese din zona de imagine."""
         if not self.current_image:
-            self.image_label.configure(text="Trage o imagine aici sau apasă 'Încarcă Imagine'")
+            self.image_label.configure(text="Drag an image here or click 'Load Image'")
     
     def is_valid_image_file(self, file_path):
         """Verifică dacă fișierul este o imagine validă."""
@@ -292,30 +353,30 @@ class PhotoEditorApp:
             self.update_image_info()
             
             # Feedback pozitiv
-            self.update_info(f"✅ Imagine încărcată cu succes!\n\n{self.get_image_info_text()}")
+            self.update_info(f"✅ Image loaded successfully!\n\n{self.get_image_info_text()}")
             
         except Exception as e:
-            messagebox.showerror("Eroare", f"Nu s-a putut încărca imaginea: {e}")
+            messagebox.showerror("Error", f"Could not load image: {e}")
     
     def get_image_info_text(self):
         """Generează textul cu informații despre imagine."""
         if self.current_image and self.image_path:
-            return f"""Fișier: {Path(self.image_path).name}
-Dimensiuni: {self.current_image.width} x {self.current_image.height}
+            return f"""File: {Path(self.image_path).name}
+Dimensions: {self.current_image.width} x {self.current_image.height}
 Format: {self.current_image.format}
-Mod: {self.current_image.mode}
-Mărime: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
+Mode: {self.current_image.mode}
+Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
         return ""
     
     def load_image(self):
         """Încarcă o imagine din fișier."""
         file_path = filedialog.askopenfilename(
-            title="Selectează o imagine",
+            title="Select an image",
             filetypes=[
-                ("Toate imaginile", "*.png *.jpg *.jpeg *.gif *.bmp *.tiff"),
+                ("All Images", "*.png *.jpg *.jpeg *.gif *.bmp *.tiff"),
                 ("PNG", "*.png"),
                 ("JPEG", "*.jpg *.jpeg"),
-                ("Toate fișierele", "*.*")
+                ("All files", "*.*")
             ]
         )
         
@@ -355,7 +416,7 @@ Mărime: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
         def worker():
             try:
                 self.progress.set(0.1)
-                self.update_info(f"Se execută {operation_name}...")
+                self.update_info(f"Running {operation_name}...")
                 
                 result = operation_func(self.current_image)
                 
@@ -364,17 +425,17 @@ Mărime: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
                 self.display_image()
                 self.progress.set(1.0)
                 
-                self.update_info(f"{operation_name} completat cu succes!")
+                self.update_info(f"{operation_name} completed successfully!")
                 
             except Exception as e:
-                messagebox.showerror("Eroare", f"Eroare la {operation_name}: {e}")
+                messagebox.showerror("Error", f"Error in {operation_name}: {e}")
             finally:
                 self.progress.set(0)
         
         if self.current_image:
             threading.Thread(target=worker, daemon=True).start()
         else:
-            messagebox.showwarning("Atenție", "Încarcă mai întâi o imagine!")
+            messagebox.showwarning("Warning", "Please load an image first!")
     
     def upscale_image(self):
         """Mărește imaginea folosind AI."""
@@ -382,7 +443,7 @@ Mărime: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
     
     def remove_background(self):
         """Elimină fundalul din imagine."""
-        self.run_ai_operation(self.bg_remover.remove_background, "Eliminare fundal")
+        self.run_ai_operation(self.bg_remover.remove_background, "Remove Background")
     
     def generative_fill(self):
         """Aplică generative fill."""
@@ -395,14 +456,14 @@ Mărime: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
                 try:
                     self.progress.set(0.5)
                     description = self.img_recognition.recognize(self.current_image)
-                    self.update_info(f"Recunoaștere imagine:\n\n{description}")
+                    self.update_info(f"Image Recognition:\n\n{description}")
                     self.progress.set(1.0)
                 except Exception as e:
-                    messagebox.showerror("Eroare", f"Eroare la recunoaștere: {e}")
+                    messagebox.showerror("Error", f"Recognition error: {e}")
                 finally:
                     self.progress.set(0)
             else:
-                messagebox.showwarning("Atenție", "Încarcă mai întâi o imagine!")
+                messagebox.showwarning("Warning", "Please load an image first!")
         
         threading.Thread(target=recognize, daemon=True).start()
     
@@ -410,32 +471,32 @@ Mărime: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
         """Salvează imaginea curentă."""
         if self.current_image:
             file_path = filedialog.asksaveasfilename(
-                title="Salvează imaginea",
+                title="Save image",
                 defaultextension=".png",
                 filetypes=[
                     ("PNG", "*.png"),
                     ("JPEG", "*.jpg"),
-                    ("Toate fișierele", "*.*")
+                    ("All files", "*.*")
                 ]
             )
             
             if file_path:
                 try:
                     self.current_image.save(file_path)
-                    messagebox.showinfo("Succes", "Imaginea a fost salvată cu succes!")
+                    messagebox.showinfo("Success", "Image saved successfully!")
                 except Exception as e:
-                    messagebox.showerror("Eroare", f"Nu s-a putut salva imaginea: {e}")
+                    messagebox.showerror("Error", f"Could not save image: {e}")
         else:
-            messagebox.showwarning("Atenție", "Nu există imagine de salvat!")
+            messagebox.showwarning("Warning", "No image to save!")
     
     def reset_image(self):
         """Resetează imaginea la starea originală."""
         if self.original_image:
             self.current_image = self.original_image.copy()
             self.display_image()
-            self.update_info("Imaginea a fost resetată la starea originală.")
+            self.update_info("Image has been reset to original state.")
         else:
-            messagebox.showwarning("Atenție", "Nu există imagine încărcată!")
+            messagebox.showwarning("Warning", "No image loaded!")
     
     def run(self):
         """Pornește aplicația."""
