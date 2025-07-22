@@ -13,6 +13,36 @@ from ..models.image_recognition import ImageRecognition
 from ..utils.image_processor import ImageProcessor
 
 class PhotoEditorApp:
+    def push_undo(self):
+        if not hasattr(self, '_undo_stack'):
+            self._undo_stack = []
+        if not hasattr(self, '_redo_stack'):
+            self._redo_stack = []
+        if self.current_image:
+            self._undo_stack.append(self.current_image.copy())
+            # Limit stack size if needed
+            if len(self._undo_stack) > 20:
+                self._undo_stack.pop(0)
+
+    def undo(self):
+        if hasattr(self, '_undo_stack') and self._undo_stack:
+            if not hasattr(self, '_redo_stack'):
+                self._redo_stack = []
+            if self.current_image:
+                self._redo_stack.append(self.current_image.copy())
+            self.current_image = self._undo_stack.pop()
+            self.display_image()
+            self.update_image_info()
+
+    def redo(self):
+        if hasattr(self, '_redo_stack') and self._redo_stack:
+            if not hasattr(self, '_undo_stack'):
+                self._undo_stack = []
+            if self.current_image:
+                self._undo_stack.append(self.current_image.copy())
+            self.current_image = self._redo_stack.pop()
+            self.display_image()
+            self.update_image_info()
     def apply_filter(self):
         """Afișează un dropdown pentru alegerea filtrului și aplică efectul pe imaginea curentă."""
         if not self.current_image:
@@ -150,6 +180,14 @@ class PhotoEditorApp:
         title = ctk.CTkLabel(control_frame, text="AI Operations", font=("Arial", 16, "bold"))
         title.pack(pady=10)
 
+        # --- Undo/Redo buttons ---
+        undo_redo_frame = ctk.CTkFrame(control_frame)
+        undo_redo_frame.pack(pady=(5, 5))
+        undo_btn = ctk.CTkButton(undo_redo_frame, text="Undo", width=65, command=self.undo)
+        redo_btn = ctk.CTkButton(undo_redo_frame, text="Redo", width=65, command=self.redo)
+        undo_btn.pack(side="left", padx=(0, 5))
+        redo_btn.pack(side="left", padx=(5, 0))
+
         # --- Sliders pentru luminozitate, contrast, saturatie ---
         from PIL import ImageEnhance
         self._slider_original = None  # Pentru a păstra imaginea originală pentru ajustări
@@ -160,6 +198,8 @@ class PhotoEditorApp:
                 self._slider_original = self.current_image.copy()
             if self._slider_original is None:
                 return
+            # Save for undo
+            self.push_undo()
             img = self._slider_original.copy()
             brightness = brightness_slider.get()
             img = ImageEnhance.Brightness(img).enhance(brightness)
@@ -180,6 +220,11 @@ class PhotoEditorApp:
             contrast_slider.set(1.0)
             saturation_slider.set(1.0)
             self._slider_original = None
+            # Resetează imaginea la original (dacă există)
+            if self.original_image:
+                self.push_undo()
+                self.current_image = self.original_image.copy()
+                self.display_image()
 
         self._reset_sliders_ref = reset_sliders  # referință pentru reset global
 
@@ -527,26 +572,23 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
         self.info_text.configure(state="disabled")
     
     def run_ai_operation(self, operation_func, operation_name):
-        """Rulează o operație AI în background."""
+        """Rulează o operație AI în background și salvează pentru undo."""
         def worker():
             try:
                 self.progress.set(0.1)
                 self.update_info(f"Running {operation_name}...")
-                
+                # Save for undo
+                self.push_undo()
                 result = operation_func(self.current_image)
-                
                 self.progress.set(0.9)
                 self.current_image = result
                 self.display_image()
                 self.progress.set(1.0)
-                
                 self.update_info(f"{operation_name} completed successfully!")
-                
             except Exception as e:
                 messagebox.showerror("Error", f"Error in {operation_name}: {e}")
             finally:
                 self.progress.set(0)
-        
         if self.current_image:
             threading.Thread(target=worker, daemon=True).start()
         else:
@@ -630,6 +672,7 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
     def reset_image(self):
         """Resetează imaginea la starea originală și resetează slider-ele de ajustare."""
         if self.original_image:
+            self.push_undo()
             self.current_image = self.original_image.copy()
             # Resetează și slider-ele dacă există
             if hasattr(self, '_reset_sliders_ref') and callable(self._reset_sliders_ref):
