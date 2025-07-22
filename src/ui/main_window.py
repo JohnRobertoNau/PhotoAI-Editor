@@ -13,6 +13,45 @@ from ..models.image_recognition import ImageRecognition
 from ..utils.image_processor import ImageProcessor
 
 class PhotoEditorApp:
+    def apply_filter(self):
+        """Afișează un dropdown pentru alegerea filtrului și aplică efectul pe imaginea curentă."""
+        if not self.current_image:
+            messagebox.showwarning("Warning", "Please load an image first!")
+            return
+
+        import tkinter.simpledialog
+        from PIL import ImageFilter, ImageOps, ImageEnhance
+
+        FILTERS = {
+            "Grayscale": lambda img: ImageOps.grayscale(img).convert("RGB"),
+            "Sepia": lambda img: ImageOps.colorize(ImageOps.grayscale(img), '#704214', '#C0C080'),
+            "Invert": lambda img: ImageOps.invert(img.convert("RGB")),
+            "Blur": lambda img: img.filter(ImageFilter.GaussianBlur(radius=2)),
+            "Sharpen": lambda img: img.filter(ImageFilter.SHARPEN),
+            "Contrast+": lambda img: ImageEnhance.Contrast(img).enhance(1.8),
+            "Brightness+": lambda img: ImageEnhance.Brightness(img).enhance(1.5),
+        }
+
+        # Dialog custom cu dropdown
+        class FilterDialog(tkinter.simpledialog.Dialog):
+            def body(self, master):
+                tk.Label(master, text="Select filter:").pack(padx=10, pady=5)
+                self.var = tk.StringVar(value=list(FILTERS.keys())[0])
+                self.dropdown = tk.OptionMenu(master, self.var, *FILTERS.keys())
+                self.dropdown.pack(padx=10, pady=5)
+                return self.dropdown
+            def apply(self):
+                self.result = self.var.get()
+
+        dialog = FilterDialog(self.root, title="Apply Filter")
+        if dialog.result and dialog.result in FILTERS:
+            try:
+                filtered = FILTERS[dialog.result](self.current_image)
+                self.current_image = filtered
+                self.display_image()
+                self.update_info(f"✅ Filter '{dialog.result}' applied!")
+            except Exception as e:
+                messagebox.showerror("Error", f"Could not apply filter: {e}")
     def __init__(self):
         # Configurează tema pentru customtkinter
         ctk.set_appearance_mode("dark")
@@ -138,6 +177,15 @@ class PhotoEditorApp:
         )
         bg_replace_btn.pack(pady=5)
 
+        # Buton Apply Filter
+        filter_btn = ctk.CTkButton(
+            control_frame,
+            text="Apply Filter",
+            command=self.apply_filter,
+            width=150
+        )
+        filter_btn.pack(pady=5)
+
         # Buton Generative Fill
         gen_fill_btn = ctk.CTkButton(
             control_frame,
@@ -214,31 +262,29 @@ class PhotoEditorApp:
         threading.Thread(target=worker, daemon=True).start()
     
     def create_image_panel(self, parent):
-        """Creează panelul pentru afișarea imaginii."""
+        """Creează panelul pentru afișarea comparației imagine originală vs. editată."""
         self.image_frame = ctk.CTkFrame(parent)
         self.image_frame.pack(side="left", fill="both", expand=True)
-        
-        # Label pentru imagine cu suport drag and drop nativ
-        self.image_label = ctk.CTkLabel(
-            self.image_frame,
-            text="Drag an image here or click 'Load Image'",
-            font=("Arial", 14),
-            height=400
-        )
-        self.image_label.pack(expand=True, fill="both", padx=20, pady=20)
-        
-        # Configurează drop zone cu styling vizual
-        self.image_label.bind("<Enter>", self.on_hover_enter)
-        self.image_label.bind("<Leave>", self.on_hover_leave)
-        
-        # Adaugă text explicativ pentru drag and drop
-        self.drop_instructions = ctk.CTkLabel(
-            self.image_frame,
-            text="📁 You can copy an image path from Windows Explorer\nand paste it here with Ctrl+V",
-            font=("Arial", 10),
-            text_color="gray"
-        )
-        self.drop_instructions.pack(pady=(0, 10))
+
+        # Frame pentru comparație
+        compare_frame = ctk.CTkFrame(self.image_frame)
+        compare_frame.pack(expand=True, fill="both", padx=0, pady=0)
+
+        # Panel stânga - Editată
+        left_panel = ctk.CTkFrame(compare_frame)
+        left_panel.pack(side="left", fill="both", expand=True, padx=(0,2))
+        left_label_title = ctk.CTkLabel(left_panel, text="Edited", font=("Arial", 12, "bold"))
+        left_label_title.pack(pady=(0,2))
+        self.edited_image_label = ctk.CTkLabel(left_panel, text="No image loaded.", font=("Arial", 12))
+        self.edited_image_label.pack(expand=True, fill="both")
+
+        # Panel dreapta - Original
+        right_panel = ctk.CTkFrame(compare_frame)
+        right_panel.pack(side="left", fill="both", expand=True, padx=(2,0))
+        right_label_title = ctk.CTkLabel(right_panel, text="Original", font=("Arial", 12, "bold"))
+        right_label_title.pack(pady=(0,2))
+        self.original_image_label = ctk.CTkLabel(right_panel, text="No image loaded.", font=("Arial", 12))
+        self.original_image_label.pack(expand=True, fill="both")
     
     def create_info_panel(self, parent):
         """Creează panelul de informații."""
@@ -249,10 +295,10 @@ class PhotoEditorApp:
         title = ctk.CTkLabel(info_frame, text="Information", font=("Arial", 16, "bold"))
         title.pack(pady=10)
         
-        # Text widget pentru afișarea informațiilor
+        # Text widget pentru afișarea informațiilor (read-only)
         self.info_text = ctk.CTkTextbox(info_frame, width=250, height=400)
         self.info_text.pack(pady=10, padx=10, fill="both", expand=True)
-        
+        self.info_text.configure(state="disabled")
         self.update_info("Load an image to see details.")
     
     def setup_drag_drop(self):
@@ -316,15 +362,7 @@ class PhotoEditorApp:
         except:
             pass  # Dacă nu poate găsi toolbar-ul, continuă fără buton
     
-    def on_hover_enter(self, event):
-        """Handler pentru când mouse-ul intră în zona de imagine."""
-        if not self.current_image:
-            self.image_label.configure(text="🖼️ Click 'Load Image' button or use Ctrl+V")
-    
-    def on_hover_leave(self, event):
-        """Handler pentru când mouse-ul iese din zona de imagine."""
-        if not self.current_image:
-            self.image_label.configure(text="Drag an image here or click 'Load Image'")
+    # Eliminat hover handlers pentru drag and drop, nu mai sunt necesare
     
     def is_valid_image_file(self, file_path):
         """Verifică dacă fișierul este o imagine validă."""
@@ -384,21 +422,38 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             self.load_image_from_path(file_path)
     
     def display_image(self):
-        """Afișează imaginea în interfață."""
+        """Afișează imaginea originală și editată în interfață (side-by-side)."""
+        # Obține dimensiunea efectivă a containerului pentru a maximiza imaginile
+        try:
+            left_w = self.original_image_label.winfo_width() or 1
+            left_h = self.original_image_label.winfo_height() or 1
+            right_w = self.edited_image_label.winfo_width() or 1
+            right_h = self.edited_image_label.winfo_height() or 1
+        except:
+            left_w = right_w = 600
+            left_h = right_h = 600
+
+        # Original
+        if self.original_image:
+            orig_disp = self.image_processor.resize_for_display(
+                self.original_image, max_width=left_w, max_height=left_h)
+            orig_photo = ImageTk.PhotoImage(orig_disp)
+            self.original_image_label.configure(image=orig_photo, text="")
+            self.original_image_label.image = orig_photo
+        else:
+            self.original_image_label.configure(image=None, text="No image loaded.")
+            self.original_image_label.image = None
+
+        # Editată
         if self.current_image:
-            # Redimensionează imaginea pentru afișare
-            display_image = self.image_processor.resize_for_display(
-                self.current_image, 
-                max_width=600, 
-                max_height=500
-            )
-            
-            # Convertește pentru tkinter
-            photo = ImageTk.PhotoImage(display_image)
-            
-            # Actualizează label-ul
-            self.image_label.configure(image=photo, text="")
-            self.image_label.image = photo  # Păstrează referința
+            edit_disp = self.image_processor.resize_for_display(
+                self.current_image, max_width=right_w, max_height=right_h)
+            edit_photo = ImageTk.PhotoImage(edit_disp)
+            self.edited_image_label.configure(image=edit_photo, text="")
+            self.edited_image_label.image = edit_photo
+        else:
+            self.edited_image_label.configure(image=None, text="No image loaded.")
+            self.edited_image_label.image = None
     
     def update_image_info(self):
         """Actualizează informațiile despre imagine."""
@@ -407,9 +462,11 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             self.update_info(info_text)
     
     def update_info(self, text):
-        """Actualizează panelul de informații."""
+        """Actualizează panelul de informații (read-only)."""
+        self.info_text.configure(state="normal")
         self.info_text.delete("1.0", "end")
         self.info_text.insert("1.0", text)
+        self.info_text.configure(state="disabled")
     
     def run_ai_operation(self, operation_func, operation_name):
         """Rulează o operație AI în background."""
