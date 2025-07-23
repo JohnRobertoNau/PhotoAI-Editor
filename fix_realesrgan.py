@@ -22,32 +22,9 @@ def run_command(command, description):
 
 def fix_realesrgan():
     """Repară problemele de compatibilitate cu Real-ESRGAN."""
-    print("🚀 Reparare compatibilitate Real-ESRGAN...")
-    
-    # Dezinstalează versiunile problematice
-    commands = [
-        ("pip uninstall -y realesrgan basicsr", "Dezinstalare versiuni problematice"),
-        ("pip install --no-cache-dir torch==2.0.1 torchvision==0.15.2", "Instalare PyTorch compatibil"),
-        ("pip install --no-cache-dir basicsr==1.4.2", "Instalare BasicSR"),
-        ("pip install --no-cache-dir realesrgan", "Instalare Real-ESRGAN"),
-    ]
-    
-    success_count = 0
-    for cmd, desc in commands:
-        if run_command(cmd, desc):
-            success_count += 1
-    
-    print(f"\n📊 Rezultat: {success_count}/{len(commands)} comenzi executate cu succes")
-    
-    # Test final
-    print("\n🧪 Test final...")
-    test_cmd = 'python3 -c "from realesrgan import RealESRGANer; print(\'Real-ESRGAN funcționează!\')"'
-    if run_command(test_cmd, "Test import Real-ESRGAN"):
-        print("\n🎉 Real-ESRGAN reparat cu succes!")
-        return True
-    else:
-        print("\n😞 Real-ESRGAN încă nu funcționează. Aplicația va folosi fallback-ul.")
-        return False
+    print("🚀 Nu se mai folosește Real-ESRGAN. Se va utiliza doar upscaling simplu (OpenCV/interpolation).")
+    print("\n� Poți folosi direct python3 main.py. Upscaling AI nu va fi disponibil, dar aplicația va funcționa cu metodele simple.")
+    return True
 
 if __name__ == "__main__":
     print("🛠️  Script de reparare Real-ESRGAN")
