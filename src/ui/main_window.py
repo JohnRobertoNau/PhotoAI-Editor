@@ -49,6 +49,9 @@ class PhotoEditorApp:
             messagebox.showwarning("Warning", "Please load an image first!")
             return
 
+        # Salvează starea pentru undo înainte de a aplica filtrul
+        self.push_undo()
+
         import tkinter.simpledialog
         from PIL import ImageFilter, ImageOps, ImageEnhance
 
