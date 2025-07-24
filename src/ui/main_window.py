@@ -23,6 +23,7 @@ class PhotoEditorApp:
             # Limit stack size if needed
             if len(self._undo_stack) > 20:
                 self._undo_stack.pop(0)
+        self.update_undo_redo_buttons()
 
     def undo(self):
         if hasattr(self, '_undo_stack') and self._undo_stack:
@@ -33,6 +34,7 @@ class PhotoEditorApp:
             self.current_image = self._undo_stack.pop()
             self.display_image()
             self.update_image_info()
+        self.update_undo_redo_buttons()
 
     def redo(self):
         if hasattr(self, '_redo_stack') and self._redo_stack:
@@ -43,6 +45,7 @@ class PhotoEditorApp:
             self.current_image = self._redo_stack.pop()
             self.display_image()
             self.update_image_info()
+        self.update_undo_redo_buttons()
     def apply_filter(self):
         """Afișează un dropdown pentru alegerea filtrului și aplică efectul pe imaginea curentă."""
         if not self.current_image:
@@ -186,15 +189,16 @@ class PhotoEditorApp:
         # --- Undo/Redo buttons ---
         undo_redo_frame = ctk.CTkFrame(control_frame)
         undo_redo_frame.pack(pady=(5, 5))
-        undo_btn = ctk.CTkButton(undo_redo_frame, text="Undo", width=65, command=self.undo)
-        redo_btn = ctk.CTkButton(undo_redo_frame, text="Redo", width=65, command=self.redo)
-        undo_btn.pack(side="left", padx=(0, 5))
-        redo_btn.pack(side="left", padx=(5, 0))
+        self.undo_btn = ctk.CTkButton(undo_redo_frame, text="Undo", width=65, command=self.undo)
+        self.redo_btn = ctk.CTkButton(undo_redo_frame, text="Redo", width=65, command=self.redo)
+        self.undo_btn.pack(side="left", padx=(0, 5))
+        self.redo_btn.pack(side="left", padx=(5, 0))
+        self.edit_progress_label = ctk.CTkLabel(undo_redo_frame, text="")
+        self.edit_progress_label.pack(side="left", padx=(10,0))
 
         # --- Sliders pentru luminozitate, contrast, saturatie ---
         from PIL import ImageEnhance
         self._slider_original = None  # Pentru a păstra imaginea originală pentru ajustări
-
 
         def on_slider_release(event=None):
             if self._slider_original is None and self.current_image:
@@ -217,7 +221,6 @@ class PhotoEditorApp:
             if self.current_image:
                 self._slider_original = self.current_image.copy()
 
-
         def reset_sliders():
             brightness_slider.set(1.0)
             contrast_slider.set(1.0)
@@ -233,7 +236,6 @@ class PhotoEditorApp:
 
         sliders_label = ctk.CTkLabel(control_frame, text="Adjust Image", font=("Arial", 13, "bold"))
         sliders_label.pack(pady=(10, 0))
-
 
         brightness_slider = ctk.CTkSlider(control_frame, from_=0.2, to=2.0, number_of_steps=36, width=140)
         brightness_slider.set(1.0)
@@ -259,8 +261,7 @@ class PhotoEditorApp:
         saturation_slider.bind("<ButtonPress-1>", on_slider_start)
         saturation_slider.bind("<ButtonRelease-1>", on_slider_release)
 
-        reset_btn2 = ctk.CTkButton(control_frame, text="Reset Adjustments", command=reset_sliders, width=140)
-        reset_btn2.pack(pady=(0, 10))
+        # Reset Adjustments button eliminated (keep only main Reset)
 
         # --- Restul butoanelor AI ---
         upscale_btn = ctk.CTkButton(
@@ -372,7 +373,7 @@ class PhotoEditorApp:
         self.image_frame = ctk.CTkFrame(parent)
         self.image_frame.pack(side="left", fill="both", expand=True)
 
-        # Frame pentru comparație
+        # Frame-uri pentru comparație
         compare_frame = ctk.CTkFrame(self.image_frame)
         compare_frame.pack(expand=True, fill="both", padx=0, pady=0)
 
@@ -408,65 +409,12 @@ class PhotoEditorApp:
         self.update_info("Load an image to see details.")
     
     def setup_drag_drop(self):
-        """Configurează funcționalitatea alternativă pentru încărcare imagine."""
-        try:
-            # Configurează keyboard shortcut pentru paste
-            self.root.bind('<Control-v>', self.paste_image_path)
-            self.root.focus_set()  # Permite focus pentru keyboard events
-            
-            # Adaugă buton pentru încărcare rapidă din clipboard
-            self.add_quick_load_button()
-            
-        except Exception as e:
-            print(f"Setup alternativ nu este disponibil: {e}")
+        """(Eliminat) Nu mai configurează paste path sau buton clipboard."""
+        pass
     
-    def paste_image_path(self, event):
-        """Handler pentru Ctrl+V - încarcă imagine din clipboard path."""
-        try:
-            # Încearcă să obțină path din clipboard
-            clipboard_content = self.root.clipboard_get()
-            
-            # Verifică dacă e un path valid către o imagine
-            if self.is_valid_image_file(clipboard_content):
-                self.load_image_from_path(clipboard_content)
-            else:
-                # Încearcă să detecteze dacă e un path Windows
-                if '\\' in clipboard_content or '/' in clipboard_content:
-                    # Curăță path-ul
-                    clean_path = clipboard_content.strip('"').strip("'")
-                    if self.is_valid_image_file(clean_path):
-                        self.load_image_from_path(clean_path)
-                    else:
-                        self.update_info("⚠️ The path from clipboard doesn't seem to be a valid image")
-                else:
-                    self.update_info("💡 Copy an image path and press Ctrl+V")
-                    
-        except tk.TclError:
-            self.update_info("📋 Clipboard doesn't contain text")
-        except Exception as e:
-            self.update_info(f"❌ Error reading clipboard: {e}")
+    # paste_image_path eliminat
     
-    def add_quick_load_button(self):
-        """Adaugă buton pentru încărcare rapidă."""
-        # Găsește toolbar-ul și adaugă buton
-        for widget in self.root.winfo_children():
-            if isinstance(widget, ctk.CTkFrame):
-                main_frame = widget
-                break
-        
-        # Adaugă buton pentru clipboard în toolbar
-        try:
-            toolbar_widgets = main_frame.winfo_children()[0]  # Primul frame e toolbar-ul
-            
-            paste_btn = ctk.CTkButton(
-                toolbar_widgets,
-                text="Paste Path (Ctrl+V)",
-                command=lambda: self.paste_image_path(None),
-                width=120
-            )
-            paste_btn.pack(side="left", padx=5, pady=5)
-        except:
-            pass  # Dacă nu poate găsi toolbar-ul, continuă fără buton
+    # add_quick_load_button eliminat
     
     # Eliminat hover handlers pentru drag and drop, nu mai sunt necesare
     
@@ -566,7 +514,7 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
         if self.current_image:
             info_text = self.get_image_info_text()
             self.update_info(info_text)
-    
+        
     def update_info(self, text):
         """Actualizează panelul de informații (read-only)."""
         self.info_text.configure(state="normal")
@@ -682,9 +630,35 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
                 self._reset_sliders_ref()
             self.display_image()
             self.update_info("Image has been reset to original state.")
+            self.update_undo_redo_buttons()
         else:
             messagebox.showwarning("Warning", "No image loaded!")
     
+    def update_undo_redo_buttons(self):
+        """Activează/dezactivează butoanele Undo/Redo și actualizează progresul modificărilor."""
+        undo_stack = getattr(self, '_undo_stack', [])
+        redo_stack = getattr(self, '_redo_stack', [])
+        # Undo
+        if hasattr(self, 'undo_btn'):
+            if undo_stack:
+                self.undo_btn.configure(state="normal")
+            else:
+                self.undo_btn.configure(state="disabled")
+        # Redo
+        if hasattr(self, 'redo_btn'):
+            if redo_stack:
+                self.redo_btn.configure(state="normal")
+            else:
+                self.redo_btn.configure(state="disabled")
+        # Progres modificări
+        if hasattr(self, 'edit_progress_label'):
+            total = len(undo_stack) + 1 + len(redo_stack) if (undo_stack or redo_stack) else 1
+            current = len(undo_stack) + 1 if (undo_stack or redo_stack) else 1
+            if total > 1:
+                self.edit_progress_label.configure(text=f"{current}/{total}")
+            else:
+                self.edit_progress_label.configure(text="")
+
     def run(self):
-        """Pornește aplicația."""
+        """Start the application."""
         self.root.mainloop()
