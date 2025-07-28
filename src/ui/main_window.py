@@ -265,6 +265,10 @@ class PhotoEditorApp:
         rotate_btn = ctk.CTkButton(control_frame, text="Rotate 90°", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#fbbf24", hover_color="#f59e42", command=self.rotate_image)
         rotate_btn.pack(pady=5)
 
+        # --- Buton Crop ---
+        crop_btn = ctk.CTkButton(control_frame, text="Crop", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#38bdf8", hover_color="#0ea5e9", command=self.crop_image)
+        crop_btn.pack(pady=5)
+
         # --- Restul butoanelor AI ---
         upscale_btn = ctk.CTkButton(
             control_frame,
@@ -674,3 +678,61 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             self.update_info("Image rotated 90° to the right.")
         else:
             messagebox.showwarning("Warning", "No image loaded!")
+    
+    def crop_image(self):
+        """Permite utilizatorului să selecteze zona de crop cu mouse-ul pe imaginea editată."""
+        if not self.current_image:
+            messagebox.showwarning("Warning", "No image loaded!")
+            return
+        # Fereastră nouă cu canvas pentru crop interactiv
+        crop_win = tk.Toplevel(self.root)
+        crop_win.title("Select Crop Area")
+        crop_win.geometry("800x600")
+        crop_win.resizable(False, False)
+        # Redimensionează imaginea pentru display
+        disp_img = self.current_image.copy()
+        disp_img.thumbnail((760, 560), Image.LANCZOS)
+        tk_img = ImageTk.PhotoImage(disp_img)
+        canvas = tk.Canvas(crop_win, width=tk_img.width(), height=tk_img.height(), cursor="cross")
+        canvas.pack(padx=20, pady=20)
+        canvas.create_image(0, 0, anchor="nw", image=tk_img)
+        # Variabile pentru selecție
+        rect = None
+        start_x = start_y = end_x = end_y = 0
+        # Coordonate reale pentru crop
+        scale_x = self.current_image.width / tk_img.width()
+        scale_y = self.current_image.height / tk_img.height()
+        def on_mouse_down(event):
+            nonlocal start_x, start_y, rect
+            start_x, start_y = event.x, event.y
+            if rect:
+                canvas.delete(rect)
+            rect = canvas.create_rectangle(start_x, start_y, start_x, start_y, outline="#38bdf8", width=2)
+        def on_mouse_drag(event):
+            nonlocal rect
+            if rect:
+                canvas.coords(rect, start_x, start_y, event.x, event.y)
+        def on_mouse_up(event):
+            nonlocal end_x, end_y, rect
+            end_x, end_y = event.x, event.y
+            # Asigură coordonate pozitive
+            x1, y1 = min(start_x, end_x), min(start_y, end_y)
+            x2, y2 = max(start_x, end_x), max(start_y, end_y)
+            # Transformă în coordonate reale
+            rx1 = int(x1 * scale_x)
+            ry1 = int(y1 * scale_y)
+            rx2 = int(x2 * scale_x)
+            ry2 = int(y2 * scale_y)
+            w, h = rx2 - rx1, ry2 - ry1
+            if w > 0 and h > 0 and rx2 <= self.current_image.width and ry2 <= self.current_image.height:
+                self.push_undo()
+                self.current_image = self.current_image.crop((rx1, ry1, rx2, ry2))
+                self.display_image()
+                self.update_info(f"Image cropped: x={rx1}, y={ry1}, w={w}, h={h}")
+                crop_win.destroy()
+            else:
+                messagebox.showwarning("Warning", "Invalid crop area!")
+        canvas.bind("<ButtonPress-1>", on_mouse_down)
+        canvas.bind("<B1-Motion>", on_mouse_drag)
+        canvas.bind("<ButtonRelease-1>", on_mouse_up)
+        crop_win.mainloop()
