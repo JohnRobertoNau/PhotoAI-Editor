@@ -258,10 +258,12 @@ class PhotoEditorApp:
         saturation_label = ctk.CTkLabel(control_frame, text="Saturation")
         saturation_label.pack(pady=(8,0))
         saturation_slider.pack(pady=(0,8))
-        saturation_slider.bind("<ButtonPress-1>", on_slider_start)
-        saturation_slider.bind("<ButtonRelease-1>", on_slider_release)
+        saturation_slider.bind("<ButtonPress-1>", lambda e: self._slider_original is None and self.current_image and setattr(self, '_slider_original', self.current_image.copy()))
+        saturation_slider.bind("<ButtonRelease-1>", lambda e: self._slider_original and self.push_undo() or None)
 
-        # Reset Adjustments button eliminated (keep only main Reset)
+        # --- Buton Rotate ---
+        rotate_btn = ctk.CTkButton(control_frame, text="Rotate 90°", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#fbbf24", hover_color="#f59e42", command=self.rotate_image)
+        rotate_btn.pack(pady=5)
 
         # --- Restul butoanelor AI ---
         upscale_btn = ctk.CTkButton(
@@ -662,3 +664,13 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
     def run(self):
         """Start the application."""
         self.root.mainloop()
+
+    def rotate_image(self):
+        """Rotește imaginea cu 90° la dreapta și salvează pentru undo."""
+        if self.current_image:
+            self.push_undo()
+            self.current_image = self.current_image.rotate(-90, expand=True)
+            self.display_image()
+            self.update_info("Image rotated 90° to the right.")
+        else:
+            messagebox.showwarning("Warning", "No image loaded!")
