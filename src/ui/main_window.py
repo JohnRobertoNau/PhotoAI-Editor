@@ -482,32 +482,23 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             self.load_image_from_path(file_path)
     
     def display_image(self):
-        """Afișează imaginea originală și editată în interfață (side-by-side)."""
-        # Obține dimensiunea efectivă a containerului pentru a maximiza imaginile
-        try:
-            left_w = self.original_image_label.winfo_width() or 1
-            left_h = self.original_image_label.winfo_height() or 1
-            right_w = self.edited_image_label.winfo_width() or 1
-            right_h = self.edited_image_label.winfo_height() or 1
-        except:
-            left_w = right_w = 600
-            left_h = right_h = 600
-
+        """Afișează imaginea originală și editată în interfață (side-by-side), ambele scalate la aceeași dimensiune maximă."""
+        # Dimensiune fixă pentru zona de comparație
+        max_w, max_h = 600, 400  # sau orice valori potrivite UI-ului tău
         # Original
         if self.original_image:
             orig_disp = self.image_processor.resize_for_display(
-                self.original_image, max_width=left_w, max_height=left_h)
+                self.original_image, max_width=max_w, max_height=max_h)
             orig_photo = ImageTk.PhotoImage(orig_disp)
             self.original_image_label.configure(image=orig_photo, text="")
             self.original_image_label.image = orig_photo
         else:
             self.original_image_label.configure(image=None, text="No image loaded.")
             self.original_image_label.image = None
-
         # Editată
         if self.current_image:
             edit_disp = self.image_processor.resize_for_display(
-                self.current_image, max_width=right_w, max_height=right_h)
+                self.current_image, max_width=max_w, max_height=max_h)
             edit_photo = ImageTk.PhotoImage(edit_disp)
             self.edited_image_label.configure(image=edit_photo, text="")
             self.edited_image_label.image = edit_photo
