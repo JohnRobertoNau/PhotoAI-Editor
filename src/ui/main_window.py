@@ -265,6 +265,10 @@ class PhotoEditorApp:
         rotate_btn = ctk.CTkButton(control_frame, text="Rotate 90°", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#fbbf24", hover_color="#f59e42", command=self.rotate_image)
         rotate_btn.pack(pady=5)
 
+        # --- Buton Mirror ---
+        mirror_btn = ctk.CTkButton(control_frame, text="Mirror", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#a3e635", hover_color="#65a30d", command=self.mirror_image)
+        mirror_btn.pack(pady=5)
+
         # --- Buton Crop ---
         crop_btn = ctk.CTkButton(control_frame, text="Crop", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#38bdf8", hover_color="#0ea5e9", command=self.crop_image)
         crop_btn.pack(pady=5)
@@ -667,6 +671,16 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             self.current_image = self.current_image.rotate(-90, expand=True)
             self.display_image()
             self.update_info("Image rotated 90° to the right.")
+        else:
+            messagebox.showwarning("Warning", "No image loaded!")
+    
+    def mirror_image(self):
+        """Reflectă imaginea pe orizontală (mirror) și salvează pentru undo."""
+        if self.current_image:
+            self.push_undo()
+            self.current_image = self.current_image.transpose(Image.FLIP_LEFT_RIGHT)
+            self.display_image()
+            self.update_info("Image mirrored horizontally.")
         else:
             messagebox.showwarning("Warning", "No image loaded!")
     
