@@ -327,6 +327,10 @@ class PhotoEditorApp:
         )
         recognize_btn.pack(pady=5)
 
+        # --- Buton Export ---
+        export_btn = ctk.CTkButton(control_frame, text="Export as...", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#facc15", hover_color="#eab308", command=self.export_image_as)
+        export_btn.pack(pady=5)
+
         self.progress = ctk.CTkProgressBar(control_frame)
         self.progress.pack(pady=20, padx=10, fill="x")
         self.progress.set(0)
@@ -756,3 +760,31 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
         canvas.bind("<B1-Motion>", on_mouse_drag)
         canvas.bind("<ButtonRelease-1>", on_mouse_up)
         crop_win.mainloop()
+
+    def export_image_as(self):
+        """Permite exportul imaginii curente în format PNG, JPEG sau WEBP."""
+        if not self.current_image:
+            messagebox.showwarning("Warning", "No image to export!")
+            return
+        file_path = filedialog.asksaveasfilename(
+            title="Export image as...",
+            defaultextension=".png",
+            filetypes=[
+                ("PNG", "*.png"),
+                ("JPEG", "*.jpg;*.jpeg"),
+                ("WEBP", "*.webp"),
+                ("All files", "*.*")
+            ]
+        )
+        if file_path:
+            try:
+                ext = os.path.splitext(file_path)[1].lower()
+                format_map = {".jpg": "JPEG", ".jpeg": "JPEG", ".png": "PNG", ".webp": "WEBP"}
+                fmt = format_map.get(ext, "PNG")
+                save_kwargs = {}
+                if fmt == "JPEG":
+                    save_kwargs["quality"] = 95
+                self.current_image.save(file_path, format=fmt, **save_kwargs)
+                messagebox.showinfo("Success", f"Image exported as {fmt}!")
+            except Exception as e:
+                messagebox.showerror("Error", f"Could not export image: {e}")
