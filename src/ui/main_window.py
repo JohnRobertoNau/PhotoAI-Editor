@@ -111,7 +111,8 @@ class PhotoEditorApp:
         
         # Configurează drag and drop
         self.setup_drag_drop()
-        
+
+
     def init_ai_models(self):
         """Inițializează modelele AI."""
         try:
@@ -268,6 +269,10 @@ class PhotoEditorApp:
         # --- Buton Mirror ---
         mirror_btn = ctk.CTkButton(control_frame, text="Mirror", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#a3e635", hover_color="#65a30d", command=self.mirror_image)
         mirror_btn.pack(pady=5)
+
+        # --- Buton Flip Vertical ---
+        flip_v_btn = ctk.CTkButton(control_frame, text="Flip Vertical", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#f472b6", hover_color="#db2777", command=self.flip_vertical_image)
+        flip_v_btn.pack(pady=5)
 
         # --- Buton Crop ---
         crop_btn = ctk.CTkButton(control_frame, text="Crop", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#38bdf8", hover_color="#0ea5e9", command=self.crop_image)
@@ -681,6 +686,16 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             self.current_image = self.current_image.transpose(Image.FLIP_LEFT_RIGHT)
             self.display_image()
             self.update_info("Image mirrored horizontally.")
+        else:
+            messagebox.showwarning("Warning", "No image loaded!")
+    
+    def flip_vertical_image(self):
+        """Reflectă imaginea pe verticală (flip vertical) și salvează pentru undo."""
+        if self.current_image:
+            self.push_undo()
+            self.current_image = self.current_image.transpose(Image.FLIP_TOP_BOTTOM)
+            self.display_image()
+            self.update_info("Image flipped vertically.")
         else:
             messagebox.showwarning("Warning", "No image loaded!")
     
