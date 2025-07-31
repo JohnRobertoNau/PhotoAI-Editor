@@ -69,6 +69,9 @@ class PhotoEditorApp:
             "Contrast+": lambda img: ImageEnhance.Contrast(img).enhance(1.8),
             "Brightness+": lambda img: ImageEnhance.Brightness(img).enhance(1.5),
             "Color+": lambda img: ImageEnhance.Color(img).enhance(1.5),
+            "Edge Enhance": lambda img: img.filter(ImageFilter.EDGE_ENHANCE),
+            "Emboss": lambda img: img.filter(ImageFilter.EMBOSS),
+            "Smooth": lambda img: img.filter(ImageFilter.SMOOTH),
         }
 
         # Dialog custom cu dropdown
