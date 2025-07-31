@@ -46,6 +46,8 @@ class PhotoEditorApp:
             self.display_image()
             self.update_image_info()
         self.update_undo_redo_buttons()
+
+
     def apply_filter(self):
         """Afișează un dropdown pentru alegerea filtrului și aplică efectul pe imaginea curentă."""
         if not self.current_image:
@@ -66,6 +68,7 @@ class PhotoEditorApp:
             "Sharpen": lambda img: img.filter(ImageFilter.SHARPEN),
             "Contrast+": lambda img: ImageEnhance.Contrast(img).enhance(1.8),
             "Brightness+": lambda img: ImageEnhance.Brightness(img).enhance(1.5),
+            "Color+": lambda img: ImageEnhance.Color(img).enhance(1.5),
         }
 
         # Dialog custom cu dropdown
@@ -724,6 +727,7 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
         rect = None
         start_x = start_y = end_x = end_y = 0
         # Coordonate reale pentru crop
+
         scale_x = self.current_image.width / tk_img.width()
         scale_y = self.current_image.height / tk_img.height()
         def on_mouse_down(event):
