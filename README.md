@@ -210,7 +210,7 @@ python3 -c "import PIL, cv2, numpy, customtkinter; print('OK')"
 python3 -c "import tkinter; print('GUI OK')"
 ```
 
-## 🎯 Modes of Operation
+## Modes of Operation
 
 **Basic mode**: Works with minimal dependencies, offers:
 - Basic image operations
