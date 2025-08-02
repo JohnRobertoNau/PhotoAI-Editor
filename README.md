@@ -1,211 +1,230 @@
-# 🧠 AI Photo Editor
+# AI Photo Editor
 
-Un editor foto inteligent cu capabilități AI pentru procesarea avansată a imaginilor.
+An intelligent photo editor with AI capabilities for advanced image processing.
 
 ![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 ![AI](https://img.shields.io/badge/AI-Enabled-orange.svg)
 
-## ✨ Funcții Principale
+## Main Features
 
-- 🔍 **Upscaling AI** - Mărirea imaginilor cu Real-ESRGAN
-- 🎭 **Eliminarea Fundalului** - Folosind U2NET și rembg
-- 🎨 **Generative Fill** - Completarea imaginilor cu Stable Diffusion
-- 👁️ **Recunoașterea Imaginilor** - Descrieri cu BLIP și clasificare cu CLIP
-- 🖥️ **UI Modern** - Interfață întunecată cu CustomTkinter
+-  **AI Upscaling** - Image enlargement with Real-ESRGAN
+-  **Background Removal** - Using U2NET and rembg
+-  **Generative Fill** - Image completion with Stable Diffusion
+-  **Image Recognition** - Descriptions with BLIP and classification with CLIP
+-  **Modern UI** - Dark interface with CustomTkinter
 
-## 🤖 Modele AI Folosite
+## AI Models Used
 
-### Sisteme Avansate (se descarcă automat):
-- **Real-ESRGAN** - Pentru upscaling profesional
-- **U2NET** - Pentru eliminarea fundalului
-- **Stable Diffusion Inpainting** - Pentru generative fill
-- **BLIP** - Pentru descrierea imaginilor
-- **CLIP** - Pentru clasificarea imaginilor
+### Advanced Systems (downloaded automatically):
+- **Real-ESRGAN** - For professional upscaling
+- **U2NET** - For background removal
+- **Stable Diffusion Inpainting** - For generative fill
+- **BLIP** - For image description
+- **CLIP** - For image classification
 
-### Fallback-uri Inteligente:
-- **LANCZOS + Sharpening** - Pentru upscaling simplu
-- **Detecție pe colțuri** - Pentru eliminarea fundalului
-- **OpenCV Inpainting** - Pentru completarea imaginilor
-- **Analiză statistică** - Pentru recunoașterea de bază
+### Smart Fallbacks:
+- **LANCZOS + Sharpening** - For simple upscaling
+- **Corner Detection** - For background removal
+- **OpenCV Inpainting** - For image completion
+- **Statistical Analysis** - For basic recognition
 
-## 🚀 Start rapid în WSL
+## Quick Start in WSL
 
-### 1. Pregătire WSL
+### 1. Prepare WSL
 ```bash
-# În WSL (Ubuntu recomandat)
+# In WSL (Ubuntu recommended)
 sudo apt update && sudo apt upgrade -y
 sudo apt install python3 python3-pip python3-venv python3-tk -y
 ```
 
-### 2. Configurare proiect
+### 2. Project Setup
 ```bash
-# Navighează la proiect
+# Navigate to the project
 cd /mnt/c/Projects/ai-editor
 
-# Rulează setup-ul automat
+# Run the automatic setup
 bash setup.sh
 ```
 
-### 3. Pornire aplicație
+### 3. Start the Application
 ```bash
-# Pornește aplicația
+# Start the application
 bash start.sh
 ```
 
-## 📝 Instalare detaliată
+## Detailed Installation
 
-### Windows cu WSL2 (Recomandat)
+### Windows with WSL2 (Recommended)
 
-1. **Instalează WSL2 și Ubuntu**:
+1. **Install WSL2 and Ubuntu**:
    ```powershell
    wsl --install -d Ubuntu
    ```
 
-2. **În WSL, pregătește sistemul**:
+2. **Prepare the system in WSL**:
    ```bash
    sudo apt update && sudo apt upgrade -y
    sudo apt install python3 python3-pip python3-venv python3-dev python3-tk -y
    sudo apt install libopencv-dev python3-opencv build-essential -y
    ```
 
-3. **Configurează proiectul**:
+3. **Configure the project**:
    ```bash
    cd /mnt/c/Projects/ai-editor
    chmod +x setup.sh start.sh
    bash setup.sh
    ```
 
-4. **Pornește aplicația**:
+4. **Start the application**:
    ```bash
    bash start.sh
    ```
 
-### Linux nativ
+### Native Linux
 
 ```bash
-# Clonează repository-ul
+# Clone the repository
 git clone <your-repo-url>
 cd ai-editor
 
-# Rulează setup-ul
+# Run the setup
 bash setup.sh
 
-# Pornește aplicația
+# Start the application
 bash start.sh
 ```
 
-### Windows nativ (alternativ)
+### Native Windows (alternative)
 
 ```powershell
-# Creează environment virtual
+# Create a virtual environment
 python -m venv venv
 venv\Scripts\activate
 
-# Instalează dependențele
+# Install dependencies
 pip install -r requirements.txt
 
-# Pornește aplicația
+# Start the application
 python main.py
 ```
 
-## 🔧 Configurare funcții AI avansate
+## Advanced AI Features Setup
 
-Pentru a activa funcțiile AI complete:
+To enable full AI features:
 
-1. **Editează `requirements.txt`** și decomentează:
+1. **Edit `requirements.txt`** and uncomment:
    ```
    transformers>=4.30.0
    diffusers>=0.18.0
    rembg>=2.0.0
    ```
 
-2. **Instalează dependențele AI**:
+2. **Install AI dependencies**:
    ```bash
    source venv/bin/activate
    pip install transformers diffusers rembg
    ```
 
-3. **Notă**: Prima rulare va descărca modele AI (câteva GB, necesită internet).
+3. **Note**: The first run will download AI models (several GB, requires internet).
 
-## 📁 Structura proiectului
+## Main Window & Intelligent Operations
+
+The core of the application is the modern graphical interface, implemented in `src/ui/main_window.py`. This file manages the user experience, including:
+- Image loading, display, and export
+- Undo/redo functionality
+- Interactive cropping, zoom, pan, and basic editing
+- Integration of all AI-powered features
+- Control panel with buttons for intelligent operations
+
+### Intelligent Operations Modules
+
+The following files in `src/models/` provide advanced AI capabilities:
+- `background_remover.py`: Removes image backgrounds using AI (U2NET, rembg) or fallback methods
+- `generative_fill.py`: Fills or completes image regions using Stable Diffusion or OpenCV inpainting
+- `image_recognition.py`: Describes and classifies images using BLIP and CLIP, with basic analysis fallback
+- `upscaler.py`: Enlarges images using Real-ESRGAN or simple interpolation
+
+These modules are seamlessly integrated into the main window, allowing users to apply intelligent edits with a single click.
+
+## Project Structure
 
 ```
 ai-editor/
-├── main.py                 # Aplicația principală
-├── requirements.txt        # Dependențe Python
-├── setup.sh               # Script instalare WSL
-├── start.sh               # Script pornire WSL
-├── WSL_SETUP.md           # Ghid detaliat WSL
+├── main.py                 # Main application entry point
+├── requirements.txt        # Python dependencies
+├── setup.sh               # WSL install script
+├── start.sh               # WSL launch script
+├── WSL_SETUP.md           # Detailed WSL guide
 ├── src/
-│   ├── ui/                # Interfața grafică
-│   │   └── main_window.py
-│   ├── models/            # Modelele AI
+│   ├── ui/                # Graphical interface
+│   │   └── main_window.py # Main window and UI logic
+│   ├── models/            # AI models and intelligent operations
 │   │   ├── upscaler.py
 │   │   ├── background_remover.py
 │   │   ├── generative_fill.py
 │   │   └── image_recognition.py
-│   └── utils/             # Utilități
+│   └── utils/             # Utilities
 │       ├── image_processor.py
 │       └── model_manager.py
 └── README.md
 ```
 
-## 🎮 Utilizare
+## Usage
 
-1. **Încarcă o imagine**: Click pe "Încarcă Imagine"
-2. **Aplică operații**: Folosește butoanele din panelul stâng
-3. **Vizualizează rezultatul**: Imaginea se actualizează în centru
-4. **Salvează**: Click pe "Salvează" pentru a exporta rezultatul
+1. **Load an image**: Click "Load Image"
+2. **Apply operations**: Use the buttons in the left panel
+3. **View the result**: The image updates in the center
+4. **Save**: Click "Save" to export the result
 
-## 🔍 Debugging
+## Debugging
 
-### Probleme comune în WSL:
+### Common issues in WSL:
 
-1. **GUI nu se deschide**:
+1. **GUI does not open**:
    ```bash
-   # Pentru WSL2 cu WSLg (Windows 11)
+   # For WSL2 with WSLg (Windows 11)
    export DISPLAY=:0
    
-   # Pentru WSL2 cu X11 (Windows 10)
+   # For WSL2 with X11 (Windows 10)
    export DISPLAY=:0.0
    ```
 
-2. **Eroare tkinter**:
+2. **Tkinter error**:
    ```bash
    sudo apt install python3-tk
    ```
 
-3. **Eroare OpenCV**:
+3. **OpenCV error**:
    ```bash
    sudo apt install libopencv-dev python3-opencv
    ```
 
-### Testare dependențe:
+### Dependency testing:
 
 ```bash
-# Test dependențe de bază
-python3 -c "import PIL, cv2, numpy, customtkinter; print('✅ OK')"
+# Basic dependency test
+python3 -c "import PIL, cv2, numpy, customtkinter; print('OK')"
 
-# Test GUI
-python3 -c "import tkinter; print('✅ GUI OK')"
+# GUI test
+python3 -c "import tkinter; print('GUI OK')"
 ```
 
-## 🎯 Moduri de funcționare
+## 🎯 Modes of Operation
 
-**Mod de bază**: Funcționează cu dependențele minime, oferă:
-- Operații de bază pe imagini
-- Filtre și ajustări
-- Analiză simplă
+**Basic mode**: Works with minimal dependencies, offers:
+- Basic image operations
+- Filters and adjustments
+- Simple analysis
 
-**Mod avansat**: Cu modele AI complete, oferă:
-- Upscaling AI
-- Eliminare fundal AI
+**Advanced mode**: With full AI models, offers:
+- AI upscaling
+- AI background removal
 - Generative fill
-- Recunoaștere avansată
+- Advanced recognition
 
-Aplicația detectează automat ce dependențe sunt disponibile și se adaptează.
+The application automatically detects available dependencies and adapts.
 
 ## How to use it
 - Enter venv: source venv/bin/activate
-- run main: python3 main.py
+- Run main: python3 main.py
