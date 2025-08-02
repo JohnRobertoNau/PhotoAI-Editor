@@ -2,10 +2,6 @@
 
 An intelligent photo editor with AI capabilities for advanced image processing.
 
-![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
-![AI](https://img.shields.io/badge/AI-Enabled-orange.svg)
-
 ## Main Features
 
 -  **AI Upscaling** - Image enlargement with Real-ESRGAN
