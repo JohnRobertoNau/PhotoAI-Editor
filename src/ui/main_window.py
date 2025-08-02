@@ -49,12 +49,12 @@ class PhotoEditorApp:
 
 
     def apply_filter(self):
-        """Afișează un dropdown pentru alegerea filtrului și aplică efectul pe imaginea curentă."""
+        """Displays a dropdown for filter selection and applies the effect to the current image."""
         if not self.current_image:
             messagebox.showwarning("Warning", "Please load an image first!")
             return
 
-        # Salvează starea pentru undo înainte de a aplica filtrul
+        # Save state for undo before applying the filter
         self.push_undo()
 
         import tkinter.simpledialog
@@ -74,7 +74,7 @@ class PhotoEditorApp:
             "Smooth": lambda img: img.filter(ImageFilter.SMOOTH),
         }
 
-        # Dialog custom cu dropdown
+        # Custom dialog with dropdown
         class FilterDialog(tkinter.simpledialog.Dialog):
             def body(self, master):
                 tk.Label(master, text="Select filter:").pack(padx=10, pady=5)
@@ -95,32 +95,32 @@ class PhotoEditorApp:
             except Exception as e:
                 messagebox.showerror("Error", f"Could not apply filter: {e}")
     def __init__(self):
-        # Configurează tema pentru customtkinter
+        # Configure theme for customtkinter
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
         
-        # Creează root cu suport drag and drop nativ
+        # Create root with native drag and drop support
         self.root = ctk.CTk()
         self.root.title("AI Photo Editor")
         self.root.geometry("1200x800")
         
-        # Variabile de stare
+        # State variables
         self.current_image = None
         self.original_image = None
         self.image_path = None
         
-        # Inițializează modelele AI
+        # Initialize AI models
         self.init_ai_models()
         
-        # Creează interfața
+        # Create interface
         self.create_widgets()
         
-        # Configurează drag and drop
+        # Configure drag and drop
         self.setup_drag_drop()
 
 
     def init_ai_models(self):
-        """Inițializează modelele AI."""
+        """Initializes AI models."""
         try:
             self.upscaler = ImageUpscaler()
             self.bg_remover = BackgroundRemover()
@@ -131,33 +131,33 @@ class PhotoEditorApp:
             messagebox.showerror("Error", f"Could not load AI models: {e}")
     
     def create_widgets(self):
-        """Creează elementele UI."""
-        # Frame principal
+        """Creates UI elements."""
+        # Main frame
         main_frame = ctk.CTkFrame(self.root)
         main_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
         # Toolbar
         self.create_toolbar(main_frame)
         
-        # Area de lucru
+        # Workspace area
         content_frame = ctk.CTkFrame(main_frame)
         content_frame.pack(fill="both", expand=True, pady=(10, 0))
         
-        # Panel stâng - controale
+        # Left panel - controls
         self.create_control_panel(content_frame)
         
-        # Panel centru - imagine
+        # Center panel - image
         self.create_image_panel(content_frame)
         
-        # Panel dreapta - informații
+        # Right panel - information
         self.create_info_panel(content_frame)
     
     def create_toolbar(self, parent):
-        """Creează toolbar-ul cu butoane principale."""
+        """Creates the main toolbar with buttons."""
         toolbar = ctk.CTkFrame(parent)
         toolbar.pack(fill="x", pady=(0, 10))
         
-        # Buton pentru încărcare imagine
+        # Button for loading image
         load_btn = ctk.CTkButton(
             toolbar, 
             text="Load Image",
@@ -166,7 +166,7 @@ class PhotoEditorApp:
         )
         load_btn.pack(side="left", padx=5, pady=5)
         
-        # Buton pentru salvare
+        # Button for saving
         save_btn = ctk.CTkButton(
             toolbar,
             text="Save",
@@ -175,7 +175,7 @@ class PhotoEditorApp:
         )
         save_btn.pack(side="left", padx=5, pady=5)
         
-        # Buton pentru reset
+        # Button for reset
         reset_btn = ctk.CTkButton(
             toolbar,
             text="Reset",
@@ -185,11 +185,11 @@ class PhotoEditorApp:
         reset_btn.pack(side="left", padx=5, pady=5)
     
     def create_control_panel(self, parent):
-        """Creează panelul de controale AI și ajustare imagine."""
+        """Creates the AI and image adjustment control panel."""
         control_frame = ctk.CTkFrame(parent)
         control_frame.pack(side="left", fill="y", padx=(0, 10))
 
-        # Titlu
+        # Title
         title = ctk.CTkLabel(control_frame, text="AI Operations", font=("Arial", 16, "bold"))
         title.pack(pady=10)
 
@@ -203,9 +203,9 @@ class PhotoEditorApp:
         self.edit_progress_label = ctk.CTkLabel(undo_redo_frame, text="")
         self.edit_progress_label.pack(side="left", padx=(10,0))
 
-        # --- Sliders pentru luminozitate, contrast, saturatie ---
+        # --- Sliders for brightness, contrast, saturation ---
         from PIL import ImageEnhance
-        self._slider_original = None  # Pentru a păstra imaginea originală pentru ajustări
+        self._slider_original = None  # To keep the original image for adjustments
 
         def on_slider_release(event=None):
             if self._slider_original is None and self.current_image:
@@ -233,13 +233,13 @@ class PhotoEditorApp:
             contrast_slider.set(1.0)
             saturation_slider.set(1.0)
             self._slider_original = None
-            # Resetează imaginea la original (dacă există)
+            # Reset image to original (if exists)
             if self.original_image:
                 self.push_undo()
                 self.current_image = self.original_image.copy()
                 self.display_image()
 
-        self._reset_sliders_ref = reset_sliders  # referință pentru reset global
+        self._reset_sliders_ref = reset_sliders  # reference for global reset
 
         sliders_label = ctk.CTkLabel(control_frame, text="Adjust Image", font=("Arial", 13, "bold"))
         sliders_label.pack(pady=(10, 0))
@@ -268,23 +268,23 @@ class PhotoEditorApp:
         saturation_slider.bind("<ButtonPress-1>", lambda e: self._slider_original is None and self.current_image and setattr(self, '_slider_original', self.current_image.copy()))
         saturation_slider.bind("<ButtonRelease-1>", lambda e: self._slider_original and self.push_undo() or None)
 
-        # --- Buton Rotate ---
+        # --- Rotate Button ---
         rotate_btn = ctk.CTkButton(control_frame, text="Rotate 90°", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#fbbf24", hover_color="#f59e42", command=self.rotate_image)
         rotate_btn.pack(pady=5)
 
-        # --- Buton Mirror ---
+        # --- Mirror Button ---
         mirror_btn = ctk.CTkButton(control_frame, text="Mirror", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#a3e635", hover_color="#65a30d", command=self.mirror_image)
         mirror_btn.pack(pady=5)
 
-        # --- Buton Flip Vertical ---
+        # --- Flip Vertical Button ---
         flip_v_btn = ctk.CTkButton(control_frame, text="Flip Vertical", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#f472b6", hover_color="#db2777", command=self.flip_vertical_image)
         flip_v_btn.pack(pady=5)
 
-        # --- Buton Crop ---
+        # --- Crop Button ---
         crop_btn = ctk.CTkButton(control_frame, text="Crop", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#38bdf8", hover_color="#0ea5e9", command=self.crop_image)
         crop_btn.pack(pady=5)
 
-        # --- Restul butoanelor AI ---
+        # --- Other AI buttons ---
         upscale_btn = ctk.CTkButton(
             control_frame,
             text="Upscale Image",
@@ -333,7 +333,7 @@ class PhotoEditorApp:
         )
         recognize_btn.pack(pady=5)
 
-        # --- Buton Export ---
+        # --- Export Button ---
         export_btn = ctk.CTkButton(control_frame, text="Export as...", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#facc15", hover_color="#eab308", command=self.export_image_as)
         export_btn.pack(pady=5)
 
@@ -341,7 +341,7 @@ class PhotoEditorApp:
         self.progress.pack(pady=20, padx=10, fill="x")
         self.progress.set(0)
     def replace_background(self):
-        """Elimină fundalul și permite alegerea unui fundal nou pentru imagine."""
+        """Removes the background and allows choosing a new background for the image."""
         if not self.current_image:
             messagebox.showwarning("Warning", "Please load an image first!")
             return
@@ -350,12 +350,12 @@ class PhotoEditorApp:
             try:
                 self.progress.set(0.1)
                 self.update_info("Removing background...")
-                # Elimină fundalul (obține imagine RGBA cu transparență)
+                # Remove background (get RGBA image with transparency)
                 fg_img = self.bg_remover.remove_background(self.current_image)
 
                 self.progress.set(0.4)
                 self.update_info("Select a new background image...")
-                # Selectează imaginea de fundal
+                # Select background image
                 bg_path = filedialog.askopenfilename(
                     title="Select background image",
                     filetypes=[
@@ -372,14 +372,14 @@ class PhotoEditorApp:
 
                 bg_img = Image.open(bg_path).convert("RGBA")
 
-                # Redimensionează fundalul la dimensiunea foreground-ului
+                # Resize background to foreground size
                 bg_img = bg_img.resize(fg_img.size, Image.LANCZOS)
 
-                # Asigură-te că foreground-ul e RGBA
+                # Ensure foreground is RGBA
                 if fg_img.mode != "RGBA":
                     fg_img = fg_img.convert("RGBA")
 
-                # Combină foreground cu background
+                # Combine foreground with background
                 result = Image.alpha_composite(bg_img, fg_img)
 
                 self.current_image = result.convert("RGB")
@@ -394,15 +394,15 @@ class PhotoEditorApp:
         threading.Thread(target=worker, daemon=True).start()
     
     def create_image_panel(self, parent):
-        """Creează panelul pentru afișarea comparației imagine originală vs. editată."""
+        """Creates the panel for displaying original vs. edited image comparison."""
         self.image_frame = ctk.CTkFrame(parent)
         self.image_frame.pack(side="left", fill="both", expand=True)
 
-        # Frame-uri pentru comparație
+        # Frames for comparison
         compare_frame = ctk.CTkFrame(self.image_frame)
         compare_frame.pack(expand=True, fill="both", padx=0, pady=0)
 
-        # Panel stânga - Editată
+        # Left panel - Edited
         left_panel = ctk.CTkFrame(compare_frame)
         left_panel.pack(side="left", fill="both", expand=True, padx=(0,2))
         left_label_title = ctk.CTkLabel(left_panel, text="Edited", font=("Arial", 12, "bold"))
@@ -410,7 +410,7 @@ class PhotoEditorApp:
         self.edited_image_label = ctk.CTkLabel(left_panel, text="No image loaded.", font=("Arial", 12))
         self.edited_image_label.pack(expand=True, fill="both")
 
-        # Panel dreapta - Original
+        # Right panel - Original
         right_panel = ctk.CTkFrame(compare_frame)
         right_panel.pack(side="left", fill="both", expand=True, padx=(2,0))
         right_label_title = ctk.CTkLabel(right_panel, text="Original", font=("Arial", 12, "bold"))
@@ -419,37 +419,37 @@ class PhotoEditorApp:
         self.original_image_label.pack(expand=True, fill="both")
     
     def create_info_panel(self, parent):
-        """Creează panelul de informații."""
+        """Creates the information panel."""
         info_frame = ctk.CTkFrame(parent)
         info_frame.pack(side="right", fill="y", padx=(10, 0))
         
-        # Titlu
+        # Title
         title = ctk.CTkLabel(info_frame, text="Information", font=("Arial", 16, "bold"))
         title.pack(pady=10)
         
-        # Text widget pentru afișarea informațiilor (read-only)
+        # Text widget for displaying information (read-only)
         self.info_text = ctk.CTkTextbox(info_frame, width=250, height=400)
         self.info_text.pack(pady=10, padx=10, fill="both", expand=True)
         self.info_text.configure(state="disabled")
         self.update_info("Load an image to see details.")
     
     def setup_drag_drop(self):
-        """(Eliminat) Nu mai configurează paste path sau buton clipboard."""
+        """(Removed) No longer configures paste path or clipboard button."""
         pass
     
-    # paste_image_path eliminat
+    # paste_image_path removed
     
-    # add_quick_load_button eliminat
+    # add_quick_load_button removed
     
-    # Eliminat hover handlers pentru drag and drop, nu mai sunt necesare
+    # Removed hover handlers for drag and drop, no longer needed
     
     def is_valid_image_file(self, file_path):
-        """Verifică dacă fișierul este o imagine validă."""
+        """Checks if the file is a valid image."""
         try:
             if not file_path or not isinstance(file_path, str):
                 return False
                 
-            # Verifică dacă path-ul există
+            # Check if path exists
             path_obj = Path(file_path)
             if not path_obj.exists() or not path_obj.is_file():
                 return False
@@ -461,7 +461,7 @@ class PhotoEditorApp:
             return False
     
     def load_image_from_path(self, file_path):
-        """Încarcă imaginea din calea specificată."""
+        """Loads image from the specified path."""
         try:
             self.image_path = file_path
             self.original_image = Image.open(file_path)
@@ -469,14 +469,14 @@ class PhotoEditorApp:
             self.display_image()
             self.update_image_info()
             
-            # Feedback pozitiv
+            # Positive feedback
             self.update_info(f"✅ Image loaded successfully!\n\n{self.get_image_info_text()}")
             
         except Exception as e:
             messagebox.showerror("Error", f"Could not load image: {e}")
     
     def get_image_info_text(self):
-        """Generează textul cu informații despre imagine."""
+        """Generates text with image information."""
         if self.current_image and self.image_path:
             return f"""File: {Path(self.image_path).name}
 Dimensions: {self.current_image.width} x {self.current_image.height}
@@ -486,7 +486,7 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
         return ""
     
     def load_image(self):
-        """Încarcă o imagine din fișier."""
+        """Loads an image from file."""
         file_path = filedialog.askopenfilename(
             title="Select an image",
             filetypes=[
@@ -501,8 +501,8 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             self.load_image_from_path(file_path)
     
     def display_image(self):
-        """Afișează imaginea originală și editată în interfață (side-by-side), ambele scalate la aceeași dimensiune maximă."""
-        # Dimensiune fixă pentru zona de comparație
+        """Displays the original and edited image side-by-side in the interface, both scaled to the same maximum size."""
+        # Fixed size for comparison area
         max_w, max_h = 600, 400  # sau orice valori potrivite UI-ului tău
         # Original
         if self.original_image:
@@ -514,7 +514,7 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
         else:
             self.original_image_label.configure(image=None, text="No image loaded.")
             self.original_image_label.image = None
-        # Editată
+        # Edited
         if self.current_image:
             edit_disp = self.image_processor.resize_for_display(
                 self.current_image, max_width=max_w, max_height=max_h)
@@ -526,20 +526,20 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             self.edited_image_label.image = None
     
     def update_image_info(self):
-        """Actualizează informațiile despre imagine."""
+        """Updates image information."""
         if self.current_image:
             info_text = self.get_image_info_text()
             self.update_info(info_text)
         
     def update_info(self, text):
-        """Actualizează panelul de informații (read-only)."""
+        """Updates the information panel (read-only)."""
         self.info_text.configure(state="normal")
         self.info_text.delete("1.0", "end")
         self.info_text.insert("1.0", text)
         self.info_text.configure(state="disabled")
     
     def run_ai_operation(self, operation_func, operation_name):
-        """Rulează o operație AI în background și salvează pentru undo."""
+        """Runs an AI operation in the background and saves for undo."""
         def worker():
             try:
                 self.progress.set(0.1)
@@ -562,42 +562,42 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             messagebox.showwarning("Warning", "Please load an image first!")
     
     def upscale_image(self):
-        """Mărește imaginea folosind AI."""
+        """Upscales the image using AI."""
         self.run_ai_operation(self.upscaler.upscale, "Upscale")
     
     def remove_background(self):
-        """Elimină fundalul din imagine."""
+        """Removes the background from the image."""
         self.run_ai_operation(self.bg_remover.remove_background, "Remove Background")
     
     def generative_fill(self):
-        """Aplică generative fill doar pe background dacă acesta a fost eliminat (imagine RGBA cu transparență)."""
+        """Applies generative fill only on the background if it has been removed (RGBA image with transparency)."""
         def fill_background_only(image):
-            # Dacă imaginea are canal alpha (fundal eliminat)
+            # If the image has an alpha channel (background removed)
             if image.mode == "RGBA":
                 import numpy as np
                 from PIL import Image
-                # Separă canalele
+                # Separate channels
                 arr = np.array(image)
                 alpha = arr[..., 3]
-                # Creează mască pentru background (transparență)
+                # Create mask for background (transparency)
                 mask = (alpha == 0)
-                # Generează un background nou folosind generative fill pe toată imaginea
+                # Generate a new background using generative fill on the whole image
                 gen_filled = self.gen_fill.fill(image.convert("RGB"))
                 gen_filled = gen_filled.convert("RGBA").resize(image.size)
                 gen_arr = np.array(gen_filled)
-                # Înlocuiește doar pixelii transparenți cu cei generați
+                # Replace only transparent pixels with generated ones
                 result_arr = arr.copy()
                 result_arr[mask] = gen_arr[mask]
                 result = Image.fromarray(result_arr, mode="RGBA")
-                # Dacă vrei să păstrezi imaginea RGB, convertește la RGB
+                # If you want to keep the image RGB, convert to RGB
                 return result.convert("RGB")
             else:
-                # Dacă nu există transparență, aplică generative fill pe toată imaginea
+            # If there is no transparency, apply generative fill to the whole image
                 return self.gen_fill.fill(image)
         self.run_ai_operation(fill_background_only, "Generative Fill")
     
     def recognize_image(self):
-        """Recunoaște conținutul imaginii."""
+        """Recognizes the content of the image."""
         def recognize():
             if self.current_image:
                 try:
@@ -615,7 +615,7 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
         threading.Thread(target=recognize, daemon=True).start()
     
     def save_image(self):
-        """Salvează imaginea curentă."""
+        """Saves the current image."""
         if self.current_image:
             file_path = filedialog.asksaveasfilename(
                 title="Save image",
@@ -637,11 +637,11 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             messagebox.showwarning("Warning", "No image to save!")
     
     def reset_image(self):
-        """Resetează imaginea la starea originală și resetează slider-ele de ajustare."""
+        """Resets the image to its original state and resets adjustment sliders."""
         if self.original_image:
             self.push_undo()
             self.current_image = self.original_image.copy()
-            # Resetează și slider-ele dacă există
+            # Also resets sliders if they exist
             if hasattr(self, '_reset_sliders_ref') and callable(self._reset_sliders_ref):
                 self._reset_sliders_ref()
             self.display_image()
@@ -651,7 +651,7 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             messagebox.showwarning("Warning", "No image loaded!")
     
     def update_undo_redo_buttons(self):
-        """Activează/dezactivează butoanele Undo/Redo și actualizează progresul modificărilor."""
+        """Enables/disables Undo/Redo buttons and updates modification progress."""
         undo_stack = getattr(self, '_undo_stack', [])
         redo_stack = getattr(self, '_redo_stack', [])
         # Undo
