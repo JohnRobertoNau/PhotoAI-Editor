@@ -13,7 +13,6 @@ An intelligent photo editor with AI capabilities for advanced image processing.
 ## AI Models Used
 
 ### Advanced Systems (downloaded automatically):
-- **Real-ESRGAN** - For professional upscaling
 - **U2NET** - For background removal
 - **Stable Diffusion Inpainting** - For generative fill
 - **BLIP** - For image description
@@ -224,3 +223,4 @@ The application automatically detects available dependencies and adapts.
 ## How to use it
 - Enter venv: source venv/bin/activate
 - Run main: python3 main.py
+
