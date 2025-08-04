@@ -325,6 +325,14 @@ class PhotoEditorApp:
         )
         gen_fill_btn.pack(pady=5)
 
+        gen_fill_simple_btn = ctk.CTkButton(
+            control_frame,
+            text="Generative Fill (No AI)",
+            command=self.generative_fill_simple,
+            width=150
+        )
+        gen_fill_simple_btn.pack(pady=5)
+
         recognize_btn = ctk.CTkButton(
             control_frame,
             text="Recognize Image",
@@ -595,6 +603,17 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             # If there is no transparency, apply generative fill to the whole image
                 return self.gen_fill.fill(image)
         self.run_ai_operation(fill_background_only, "Generative Fill")
+    
+    def generative_fill_simple(self):
+        """Applies simple generative fill (OpenCV inpainting, no AI) to the current image."""
+        if not self.current_image:
+            messagebox.showwarning("Warning", "No image loaded!")
+            return
+        self.push_undo()
+        result = self.gen_fill.generative_fill_no_ai(self.current_image)
+        self.current_image = result
+        self.display_image()
+        self.update_info("Simple generative fill applied (no AI).")
     
     def recognize_image(self):
         """Recognizes the content of the image."""
