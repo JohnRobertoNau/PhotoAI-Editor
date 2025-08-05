@@ -579,29 +579,56 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
     
     def generative_fill(self):
         """Applies generative fill only on the background if it has been removed (RGBA image with transparency)."""
+        # Show prompt dialog
+        class PromptDialog(tk.Toplevel):
+            def __init__(self, master):
+                super().__init__(master)
+                self.title("How to fill the image?")
+                self.geometry("350x140")
+                self.resizable(False, False)
+                self.prompt = None
+                label = tk.Label(self, text="How to fill the image?", font=("Arial", 12))
+                label.pack(pady=(15, 5))
+                self.entry = tk.Entry(self, width=40)
+                self.entry.pack(pady=5)
+                btn_frame = tk.Frame(self)
+                btn_frame.pack(pady=10)
+                fill_btn = tk.Button(btn_frame, text="Fill now", width=10, command=self.on_fill)
+                fill_btn.pack(side="left", padx=5)
+                cancel_btn = tk.Button(btn_frame, text="Cancel", width=10, command=self.on_cancel)
+                cancel_btn.pack(side="left", padx=5)
+                self.entry.focus_set()
+                self.result = None
+            def on_fill(self):
+                self.result = self.entry.get()
+                self.destroy()
+            def on_cancel(self):
+                self.result = None
+                self.destroy()
+
+        dialog = PromptDialog(self.root)
+        self.root.wait_window(dialog)
+        prompt = dialog.result
+        if prompt is None:
+            self.update_info("Generative fill cancelled.")
+            return
         def fill_background_only(image):
             # If the image has an alpha channel (background removed)
             if image.mode == "RGBA":
                 import numpy as np
                 from PIL import Image
-                # Separate channels
                 arr = np.array(image)
                 alpha = arr[..., 3]
-                # Create mask for background (transparency)
                 mask = (alpha == 0)
-                # Generate a new background using generative fill on the whole image
-                gen_filled = self.gen_fill.fill(image.convert("RGB"))
+                gen_filled = self.gen_fill.fill(image.convert("RGB"), prompt=prompt)
                 gen_filled = gen_filled.convert("RGBA").resize(image.size)
                 gen_arr = np.array(gen_filled)
-                # Replace only transparent pixels with generated ones
                 result_arr = arr.copy()
                 result_arr[mask] = gen_arr[mask]
                 result = Image.fromarray(result_arr, mode="RGBA")
-                # If you want to keep the image RGB, convert to RGB
                 return result.convert("RGB")
             else:
-            # If there is no transparency, apply generative fill to the whole image
-                return self.gen_fill.fill(image)
+                return self.gen_fill.fill(image, prompt=prompt)
         self.run_ai_operation(fill_background_only, "Generative Fill")
     
     def generative_fill_simple(self):
