@@ -207,13 +207,9 @@ class PhotoEditorApp:
         from PIL import ImageEnhance
         self._slider_original = None  # To keep the original image for adjustments
 
-        def on_slider_release(event=None):
-            if self._slider_original is None and self.current_image:
-                self._slider_original = self.current_image.copy()
+        def on_slider_change(event=None):
             if self._slider_original is None:
                 return
-            # Save for undo
-            self.push_undo()
             img = self._slider_original.copy()
             brightness = brightness_slider.get()
             img = ImageEnhance.Brightness(img).enhance(brightness)
@@ -223,6 +219,27 @@ class PhotoEditorApp:
             img = ImageEnhance.Color(img).enhance(saturation)
             self.current_image = img
             self.display_image()
+
+        def on_slider_start(event=None):
+            if self.current_image:
+                self._slider_original = self.current_image.copy()
+
+        def on_slider_release(event=None):
+            if self._slider_original is None:
+                return
+            # Save for undo
+            self.push_undo()
+            # Final update (optional, since on_slider_change already updates)
+            img = self._slider_original.copy()
+            brightness = brightness_slider.get()
+            img = ImageEnhance.Brightness(img).enhance(brightness)
+            contrast = contrast_slider.get()
+            img = ImageEnhance.Contrast(img).enhance(contrast)
+            saturation = saturation_slider.get()
+            img = ImageEnhance.Color(img).enhance(saturation)
+            self.current_image = img
+            self.display_image()
+            self._slider_original = None
 
         def on_slider_start(event=None):
             if self.current_image:
@@ -250,6 +267,7 @@ class PhotoEditorApp:
         brightness_label.pack(pady=(8,0))
         brightness_slider.pack(pady=(0,0))
         brightness_slider.bind("<ButtonPress-1>", on_slider_start)
+        brightness_slider.bind("<B1-Motion>", on_slider_change)
         brightness_slider.bind("<ButtonRelease-1>", on_slider_release)
 
         contrast_slider = ctk.CTkSlider(control_frame, from_=0.2, to=2.0, number_of_steps=36, width=140)
@@ -258,6 +276,7 @@ class PhotoEditorApp:
         contrast_label.pack(pady=(8,0))
         contrast_slider.pack(pady=(0,0))
         contrast_slider.bind("<ButtonPress-1>", on_slider_start)
+        contrast_slider.bind("<B1-Motion>", on_slider_change)
         contrast_slider.bind("<ButtonRelease-1>", on_slider_release)
 
         saturation_slider = ctk.CTkSlider(control_frame, from_=0.0, to=2.0, number_of_steps=40, width=140)
@@ -265,8 +284,9 @@ class PhotoEditorApp:
         saturation_label = ctk.CTkLabel(control_frame, text="Saturation")
         saturation_label.pack(pady=(8,0))
         saturation_slider.pack(pady=(0,8))
-        saturation_slider.bind("<ButtonPress-1>", lambda e: self._slider_original is None and self.current_image and setattr(self, '_slider_original', self.current_image.copy()))
-        saturation_slider.bind("<ButtonRelease-1>", lambda e: self._slider_original and self.push_undo() or None)
+        saturation_slider.bind("<ButtonPress-1>", on_slider_start)
+        saturation_slider.bind("<B1-Motion>", on_slider_change)
+        saturation_slider.bind("<ButtonRelease-1>", on_slider_release)
 
         # --- Rotate Button ---
         rotate_btn = ctk.CTkButton(control_frame, text="Rotate 90°", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#fbbf24", hover_color="#f59e42", command=self.rotate_image)
