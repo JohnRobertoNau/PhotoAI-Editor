@@ -301,7 +301,7 @@ class PhotoEditorApp:
         flip_v_btn.pack(pady=5)
 
         # --- Crop Button ---
-        crop_btn = ctk.CTkButton(control_frame, text="Crop", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#38bdf8", hover_color="#0ea5e9", command=self.crop_image)
+        crop_btn = ctk.CTkButton(control_frame, text="Crop", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=122, fg_color="#38bdf8", hover_color="#0ea5e9", command=self.crop_image)
         crop_btn.pack(pady=5)
 
         # --- Other AI buttons ---
