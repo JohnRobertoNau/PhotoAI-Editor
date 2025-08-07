@@ -593,10 +593,16 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
         # Original
         if self.original_image:
             zoom_orig = self._zoom_factor_orig if hasattr(self, '_zoom_factor_orig') else 1.0
+            # Calculate display size: allow zoom > 1.0 to exceed max_w/max_h
             base_w, base_h = max_w, max_h
             disp_w, disp_h = int(base_w * zoom_orig), int(base_h * zoom_orig)
             orig_disp = self.original_image.copy()
-            orig_disp = self.image_processor.resize_for_display(orig_disp, max_width=disp_w, max_height=disp_h)
+            # If zoom > 1, allow upscaling beyond the default display size
+            if zoom_orig > 1.0:
+                # Don't limit to max_width/max_height, just resize to (disp_w, disp_h)
+                orig_disp = orig_disp.resize((disp_w, disp_h), Image.LANCZOS)
+            else:
+                orig_disp = self.image_processor.resize_for_display(orig_disp, max_width=disp_w, max_height=disp_h)
             orig_photo = ImageTk.PhotoImage(orig_disp)
             self.original_image_label.configure(image=orig_photo, text="")
             self.original_image_label.image = orig_photo
@@ -609,7 +615,10 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             base_w, base_h = max_w, max_h
             disp_w, disp_h = int(base_w * zoom_edit), int(base_h * zoom_edit)
             edit_disp = self.current_image.copy()
-            edit_disp = self.image_processor.resize_for_display(edit_disp, max_width=disp_w, max_height=disp_h)
+            if zoom_edit > 1.0:
+                edit_disp = edit_disp.resize((disp_w, disp_h), Image.LANCZOS)
+            else:
+                edit_disp = self.image_processor.resize_for_display(edit_disp, max_width=disp_w, max_height=disp_h)
             edit_photo = ImageTk.PhotoImage(edit_disp)
             self.edited_image_label.configure(image=edit_photo, text="")
             self.edited_image_label.image = edit_photo
