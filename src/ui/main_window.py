@@ -433,47 +433,77 @@ class PhotoEditorApp:
         # Left panel - Edited
         left_panel = ctk.CTkFrame(compare_frame)
         left_panel.pack(side="left", fill="both", expand=True, padx=(0,2))
-        left_label_title = ctk.CTkLabel(left_panel, text="Edited", font=("Arial", 12, "bold"))
-        left_label_title.pack(pady=(0,2))
-        # --- ZOOM state ---
-        self._zoom_factor = 1.0
+        # Header frame pentru titlu + zoom (EDITED)
+        edited_header_frame = ctk.CTkFrame(left_panel, fg_color="transparent")
+        edited_header_frame.pack(fill="x", pady=(0,2))
+        left_label_title = ctk.CTkLabel(edited_header_frame, text="Edited", font=("Arial", 12, "bold"))
+        left_label_title.pack(side="left", padx=(0,4))
+        # Zoom controls sus, langa titlu (doar +, -, Reset)
+        zoom_btn_frame_edit = ctk.CTkFrame(edited_header_frame, fg_color="transparent")
+        zoom_btn_frame_edit.pack(side="left")
+        def zoom_in_edit():
+            self._zoom_factor_edit = min(self._zoom_factor_edit * 1.2, self._zoom_max)
+            self.display_image()
+        def zoom_out_edit():
+            self._zoom_factor_edit = max(self._zoom_factor_edit / 1.2, self._zoom_min)
+            self.display_image()
+        def reset_zoom_edit():
+            self._zoom_factor_edit = self._zoom_default
+            self.display_image()
+        zoom_in_btn_edit = ctk.CTkButton(zoom_btn_frame_edit, text="+", width=28, height=22, command=zoom_in_edit)
+        zoom_in_btn_edit.pack(side="left", padx=1)
+        zoom_out_btn_edit = ctk.CTkButton(zoom_btn_frame_edit, text="-", width=28, height=22, command=zoom_out_edit)
+        zoom_out_btn_edit.pack(side="left", padx=1)
+        reset_zoom_btn_edit = ctk.CTkButton(zoom_btn_frame_edit, text="Reset", width=48, height=22, command=reset_zoom_edit)
+        reset_zoom_btn_edit.pack(side="left", padx=1)
+        # --- ZOOM state for both images ---
+        self._zoom_factor_edit = 1.0
+        self._zoom_factor_orig = 1.0
         self._zoom_min = 0.2
         self._zoom_max = 5.0
         self._zoom_default = 1.0
         self._zoom_display_size = (600, 400)
-        self.edited_image_label = ctk.CTkLabel(left_panel, text="No image loaded.", font=("Arial", 12))
+        # --- Frame pentru imagine editată + zoom controls ---
+        edited_img_frame = ctk.CTkFrame(left_panel)
+        edited_img_frame.pack(expand=True, fill="both")
+        self.edited_image_label = ctk.CTkLabel(edited_img_frame, text="No image loaded.", font=("Arial", 12))
         self.edited_image_label.pack(expand=True, fill="both")
 
-        # --- Zoom controls ---
-        zoom_btn_frame = ctk.CTkFrame(left_panel)
-        zoom_btn_frame.pack(pady=(0, 8))
-
-        def zoom_in():
-            self._zoom_factor = min(self._zoom_factor * 1.2, self._zoom_max)
-            self.display_image()
-
-        def zoom_out():
-            self._zoom_factor = max(self._zoom_factor / 1.2, self._zoom_min)
-            self.display_image()
-
-        def reset_zoom():
-            self._zoom_factor = self._zoom_default
-            self.display_image()
-
-        zoom_in_btn = ctk.CTkButton(zoom_btn_frame, text="+", width=32, command=zoom_in)
-        zoom_in_btn.pack(side="left", padx=2)
-        zoom_out_btn = ctk.CTkButton(zoom_btn_frame, text="-", width=32, command=zoom_out)
-        zoom_out_btn.pack(side="left", padx=2)
-        reset_zoom_btn = ctk.CTkButton(zoom_btn_frame, text="Reset Zoom", width=90, command=reset_zoom)
-        reset_zoom_btn.pack(side="left", padx=2)
+        # ...existing code...
 
         # Right panel - Original
         right_panel = ctk.CTkFrame(compare_frame)
         right_panel.pack(side="left", fill="both", expand=True, padx=(2,0))
-        right_label_title = ctk.CTkLabel(right_panel, text="Original", font=("Arial", 12, "bold"))
-        right_label_title.pack(pady=(0,2))
-        self.original_image_label = ctk.CTkLabel(right_panel, text="No image loaded.", font=("Arial", 12))
+        # Header frame pentru titlu + zoom (ORIGINAL)
+        original_header_frame = ctk.CTkFrame(right_panel, fg_color="transparent")
+        original_header_frame.pack(fill="x", pady=(0,2))
+        right_label_title = ctk.CTkLabel(original_header_frame, text="Original", font=("Arial", 12, "bold"))
+        right_label_title.pack(side="left", padx=(0,4))
+        # Zoom controls sus, langa titlu (doar +, -, Reset)
+        zoom_btn_frame_orig = ctk.CTkFrame(original_header_frame, fg_color="transparent")
+        zoom_btn_frame_orig.pack(side="left")
+        def zoom_in_orig():
+            self._zoom_factor_orig = min(self._zoom_factor_orig * 1.2, self._zoom_max)
+            self.display_image()
+        def zoom_out_orig():
+            self._zoom_factor_orig = max(self._zoom_factor_orig / 1.2, self._zoom_min)
+            self.display_image()
+        def reset_zoom_orig():
+            self._zoom_factor_orig = self._zoom_default
+            self.display_image()
+        zoom_in_btn_orig = ctk.CTkButton(zoom_btn_frame_orig, text="+", width=28, height=22, command=zoom_in_orig)
+        zoom_in_btn_orig.pack(side="left", padx=1)
+        zoom_out_btn_orig = ctk.CTkButton(zoom_btn_frame_orig, text="-", width=28, height=22, command=zoom_out_orig)
+        zoom_out_btn_orig.pack(side="left", padx=1)
+        reset_zoom_btn_orig = ctk.CTkButton(zoom_btn_frame_orig, text="Reset", width=48, height=22, command=reset_zoom_orig)
+        reset_zoom_btn_orig.pack(side="left", padx=1)
+        # --- Frame pentru imagine originală + zoom controls ---
+        original_img_frame = ctk.CTkFrame(right_panel)
+        original_img_frame.pack(expand=True, fill="both")
+        self.original_image_label = ctk.CTkLabel(original_img_frame, text="No image loaded.", font=("Arial", 12))
         self.original_image_label.pack(expand=True, fill="both")
+
+        # ...existing code...
     
     def create_info_panel(self, parent):
         """Creates the information panel."""
@@ -558,12 +588,15 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             self.load_image_from_path(file_path)
     
     def display_image(self):
-        """Displays the original and edited image side-by-side in the interface, both scaled to the same maximum size. Suportă zoom pentru imaginea editată."""
+        """Displays the original and edited image side-by-side in the interface, both scaled to the same maximum size. Suportă zoom independent pentru ambele imagini."""
         max_w, max_h = self._zoom_display_size if hasattr(self, '_zoom_display_size') else (600, 400)
         # Original
         if self.original_image:
-            orig_disp = self.image_processor.resize_for_display(
-                self.original_image, max_width=max_w, max_height=max_h)
+            zoom_orig = self._zoom_factor_orig if hasattr(self, '_zoom_factor_orig') else 1.0
+            base_w, base_h = max_w, max_h
+            disp_w, disp_h = int(base_w * zoom_orig), int(base_h * zoom_orig)
+            orig_disp = self.original_image.copy()
+            orig_disp = self.image_processor.resize_for_display(orig_disp, max_width=disp_w, max_height=disp_h)
             orig_photo = ImageTk.PhotoImage(orig_disp)
             self.original_image_label.configure(image=orig_photo, text="")
             self.original_image_label.image = orig_photo
@@ -572,9 +605,9 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             self.original_image_label.image = None
         # Edited
         if self.current_image:
-            zoom = self._zoom_factor if hasattr(self, '_zoom_factor') else 1.0
+            zoom_edit = self._zoom_factor_edit if hasattr(self, '_zoom_factor_edit') else 1.0
             base_w, base_h = max_w, max_h
-            disp_w, disp_h = int(base_w * zoom), int(base_h * zoom)
+            disp_w, disp_h = int(base_w * zoom_edit), int(base_h * zoom_edit)
             edit_disp = self.current_image.copy()
             edit_disp = self.image_processor.resize_for_display(edit_disp, max_width=disp_w, max_height=disp_h)
             edit_photo = ImageTk.PhotoImage(edit_disp)
