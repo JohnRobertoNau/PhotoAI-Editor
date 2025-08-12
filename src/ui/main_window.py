@@ -304,6 +304,64 @@ class PhotoEditorApp:
         crop_btn = ctk.CTkButton(control_frame, text="Crop", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=122, fg_color="#38bdf8", hover_color="#0ea5e9", command=self.crop_image)
         crop_btn.pack(pady=5)
 
+        # --- Aspect Ratio Crop Button (Dropdown) ---
+        def crop_aspect_ratio():
+            if not self.current_image:
+                messagebox.showwarning("Warning", "No image loaded!")
+                return
+            # Dropdown dialog for aspect ratio
+            aspect_win = tk.Toplevel(self.root)
+            aspect_win.title("Select Aspect Ratio")
+            aspect_win.geometry("280x180")
+            aspect_win.resizable(False, False)
+            tk.Label(aspect_win, text="Choose aspect ratio:", font=("Arial", 12)).pack(pady=(18, 8))
+            aspect_options = [
+                "1:1", "3:4", "4:3", "9:16", "16:9", "2:3", "3:2", "5:4", "4:5", "7:5", "5:7", "21:9", "1:2", "2:1"
+            ]
+            var = tk.StringVar(value="3:4")
+            dropdown = tk.OptionMenu(aspect_win, var, *aspect_options)
+            dropdown.pack(pady=(0, 10))
+            btn_frame = tk.Frame(aspect_win)
+            btn_frame.pack(pady=5)
+            def on_ok():
+                aspect = var.get()
+                aspect_win.destroy()
+                w, h = self.current_image.width, self.current_image.height
+                # Parse aspect ratio string
+                try:
+                    num, den = aspect.split(":")
+                    num = float(num)
+                    den = float(den)
+                    target_ratio = num / den
+                except Exception:
+                    messagebox.showwarning("Warning", "Invalid aspect ratio!")
+                    return
+                img_ratio = w / h
+                if img_ratio > target_ratio:
+                    new_w = int(h * target_ratio)
+                    new_h = h
+                else:
+                    new_w = w
+                    new_h = int(w / target_ratio)
+                left = (w - new_w) // 2
+                top = (h - new_h) // 2
+                right = left + new_w
+                bottom = top + new_h
+                self.push_undo()
+                self.current_image = self.current_image.crop((left, top, right, bottom))
+                self.display_image()
+                self.update_info(f"Image cropped to {aspect} aspect ratio.")
+            ok_btn = tk.Button(btn_frame, text="Crop", width=10, command=on_ok)
+            ok_btn.pack(side="left", padx=5)
+            cancel_btn = tk.Button(btn_frame, text="Cancel", width=10, command=aspect_win.destroy)
+            cancel_btn.pack(side="left", padx=5)
+            aspect_win.transient(self.root)
+            aspect_win.grab_set()
+            self.root.wait_window(aspect_win)
+
+        crop_aspect_btn = ctk.CTkButton(control_frame, text="Aspect Ratio Crop", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#818cf8", hover_color="#6366f1", command=crop_aspect_ratio)
+        crop_aspect_btn.pack(pady=5)
+
         # --- Other AI buttons ---
         upscale_btn = ctk.CTkButton(
             control_frame,
