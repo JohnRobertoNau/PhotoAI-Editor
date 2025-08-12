@@ -691,10 +691,26 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             self.update_info(info_text)
         
     def update_info(self, text):
-        """Updates the information panel (read-only)."""
+        """Appends a new message to the information panel, with numbering."""
+        if not hasattr(self, '_info_history'):
+            self._info_history = []
+        # If this is a reset/load event, clear history
+        if text.startswith("✅ Image loaded successfully!") or text.startswith("Image has been reset") or text.startswith("Load an image to see details."):
+            self._info_history = []
+        self._info_history.append(text)
+        # Build numbered info
+        info_lines = []
+        for idx, msg in enumerate(self._info_history, 1):
+            # Only number the first line of each message
+            msg_lines = msg.splitlines()
+            if msg_lines:
+                info_lines.append(f"{idx}. {msg_lines[0]}")
+                if len(msg_lines) > 1:
+                    info_lines.extend(msg_lines[1:])
+        info_text = "\n".join(info_lines)
         self.info_text.configure(state="normal")
         self.info_text.delete("1.0", "end")
-        self.info_text.insert("1.0", text)
+        self.info_text.insert("1.0", info_text)
         self.info_text.configure(state="disabled")
     
     def run_ai_operation(self, operation_func, operation_name):
