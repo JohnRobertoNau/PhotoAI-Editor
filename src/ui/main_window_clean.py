@@ -13,142 +13,6 @@ from ..models.image_recognition import ImageRecognition
 from ..utils.image_processor import ImageProcessor
 
 class PhotoEditorApp:
-    def add_text_to_image(self):
-        """Permite adăugarea de text pe imagine prin selectarea unei zone cu mouse-ul și introducerea textului cu alegerea culorii."""
-        if not self.current_image:
-            messagebox.showwarning("Warning", "No image loaded!")
-            return
-        text_win = tk.Toplevel(self.root)
-        text_win.title("Add Text")
-        text_win.geometry("800x650")
-        text_win.resizable(False, False)
-        
-        # Color selection dropdown at top
-        color_options = {
-            "Alb": "white",
-            "Negru": "black",
-            "Roșu": "#ef4444",
-            "Galben": "#fde047",
-            "Albastru": "#3b82f6",
-            "Verde": "#22c55e",
-            "Portocaliu": "#f97316",
-            "Mov": "#a21caf"
-        }
-        color_var = tk.StringVar(value="Alb")
-        color_frame = tk.Frame(text_win)
-        color_frame.pack(pady=10)
-        tk.Label(color_frame, text="Text color:", font=("Arial", 12)).pack(side="left", padx=(0, 5))
-        color_menu = tk.OptionMenu(color_frame, color_var, *color_options.keys())
-        color_menu.config(font=("Arial", 10))
-        color_menu.pack(side="left")
-        
-        disp_img = self.current_image.copy()
-        disp_img.thumbnail((760, 560), Image.LANCZOS)
-        tk_img = ImageTk.PhotoImage(disp_img)
-        canvas = tk.Canvas(text_win, width=tk_img.width(), height=tk_img.height(), cursor="cross")
-        canvas.pack(padx=20, pady=20)
-        canvas.create_image(0, 0, anchor="nw", image=tk_img)
-        rect = None
-        start_x = start_y = end_x = end_y = None, None, None, None
-        entry_widget = None
-        scale_x = self.current_image.width / tk_img.width()
-        scale_y = self.current_image.height / tk_img.height()
-        def on_mouse_down(event):
-            nonlocal start_x, start_y, rect, entry_widget, end_x, end_y
-            start_x, start_y = event.x, event.y
-            end_x, end_y = event.x, event.y
-            if rect:
-                canvas.delete(rect)
-            rect = canvas.create_rectangle(start_x, start_y, start_x, start_y, outline="#facc15", width=2)
-            if entry_widget:
-                entry_widget.destroy()
-        def on_mouse_drag(event):
-            nonlocal rect, end_x, end_y
-            end_x, end_y = event.x, event.y
-            if rect:
-                canvas.coords(rect, start_x, start_y, end_x, end_y)
-        def on_mouse_up(event):
-            nonlocal end_x, end_y, entry_widget
-            end_x, end_y = event.x, event.y
-            x1, y1 = min(start_x, end_x), min(start_y, end_y)
-            x2, y2 = max(start_x, end_x), max(start_y, end_y)
-            if entry_widget:
-                entry_widget.destroy()
-            if abs(x2-x1) < 10 or abs(y2-y1) < 10:
-                return  # zona prea mică
-            entry_widget = tk.Entry(canvas, font=("Arial", 16))
-            entry_widget.place(x=x1, y=y1, width=max(40, x2-x1), height=max(30, y2-y1))
-            entry_widget.focus_set()
-        def on_ok():
-            nonlocal entry_widget, start_x, start_y, end_x, end_y
-            if not entry_widget or start_x is None or start_y is None or end_x is None or end_y is None:
-                messagebox.showwarning("Warning", "Select a text area și scrie text!")
-                return
-            text = entry_widget.get()
-            if not text.strip():
-                messagebox.showwarning("Warning", "Text is empty!")
-                return
-            rx1 = int(min(start_x, end_x) * scale_x)
-            ry1 = int(min(start_y, end_y) * scale_y)
-            rx2 = int(max(start_x, end_x) * scale_x)
-            ry2 = int(max(start_y, end_y) * scale_y)
-            if abs(rx2-rx1) < 5 or abs(ry2-ry1) < 5:
-                messagebox.showwarning("Warning", "Select a larger area for text!")
-                return
-            self.push_undo()
-            img = self.current_image.copy()
-            from PIL import ImageDraw, ImageFont
-            draw = ImageDraw.Draw(img)
-            # Font cu mărime mult mai mare - folosim toată înălțimea textbox-ului
-            font_size = max(60, int((ry2-ry1)))  # Folosim toată înălțimea ca mărime font
-            
-            font = None
-            # Încercăm să găsim un font TrueType
-            font_paths = [
-                "arial.ttf",
-                "C:/Windows/Fonts/arial.ttf", 
-                "/System/Library/Fonts/Arial.ttf",
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-                "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
-            ]
-            
-            for font_path in font_paths:
-                try:
-                    font = ImageFont.truetype(font_path, size=font_size)
-                    break
-                except:
-                    continue
-            
-            if font is None:
-                font = ImageFont.load_default()
-            # Use textbbox instead of textsize for newer Pillow versions
-            try:
-                bbox = draw.textbbox((0, 0), text, font=font)
-                w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-            except AttributeError:
-                # Fallback for older Pillow versions
-                w, h = draw.textsize(text, font=font)
-            tx = rx1 + max(0, ((rx2-rx1)-w)//2)
-            ty = ry1 + max(0, ((ry2-ry1)-h)//2)
-            # Textul cu culoarea selectată
-            text_color = color_options.get(color_var.get(), "white")
-            draw.text((tx, ty), text, fill=text_color, font=font)
-            self.current_image = img
-            self.display_image()
-            self.update_info(f"Text added: '{text}' (color: {color_var.get()})")
-            text_win.destroy()
-        def on_cancel():
-            text_win.destroy()
-        canvas.bind("<ButtonPress-1>", on_mouse_down)
-        canvas.bind("<B1-Motion>", on_mouse_drag)
-        canvas.bind("<ButtonRelease-1>", on_mouse_up)
-        btn_frame = tk.Frame(text_win)
-        btn_frame.pack(pady=5)
-        ok_btn = tk.Button(btn_frame, text="Add Text", width=12, command=on_ok)
-        ok_btn.pack(side="left", padx=5)
-        cancel_btn = tk.Button(btn_frame, text="Cancel", width=12, command=on_cancel)
-        cancel_btn.pack(side="left", padx=5)
-        text_win.mainloop()
     def push_undo(self):
         if not hasattr(self, '_undo_stack'):
             self._undo_stack = []
@@ -183,6 +47,194 @@ class PhotoEditorApp:
             self.update_image_info()
         self.update_undo_redo_buttons()
 
+    def update_undo_redo_buttons(self):
+        undo_stack = getattr(self, '_undo_stack', [])
+        redo_stack = getattr(self, '_redo_stack', [])
+        # Undo
+        if hasattr(self, 'undo_btn'):
+            if undo_stack:
+                self.undo_btn.configure(state="normal")
+            else:
+                self.undo_btn.configure(state="disabled")
+        # Redo
+        if hasattr(self, 'redo_btn'):
+            if redo_stack:
+                self.redo_btn.configure(state="normal")
+            else:
+                self.redo_btn.configure(state="disabled")
+        # Progres modificări
+        if hasattr(self, 'edit_progress_label'):
+            total = len(undo_stack) + 1 + len(redo_stack) if (undo_stack or redo_stack) else 1
+            current = len(undo_stack) + 1 if (undo_stack or redo_stack) else 1
+            if total > 1:
+                self.edit_progress_label.configure(text=f"{current}/{total}")
+            else:
+                self.edit_progress_label.configure(text="")
+
+    def add_text_to_image(self):
+        """Permite adăugarea de text pe imagine prin selectarea unei zone cu mouse-ul și introducerea textului. Include alegerea culorii textului."""
+        if not self.current_image:
+            messagebox.showwarning("Warning", "No image loaded!")
+            return
+        
+        text_win = tk.Toplevel(self.root)
+        text_win.title("Add Text")
+        text_win.geometry("800x650")
+        text_win.resizable(False, False)
+        
+        # Afișăm imaginea
+        disp_img = self.current_image.copy()
+        disp_img.thumbnail((760, 560), Image.LANCZOS)
+        tk_img = ImageTk.PhotoImage(disp_img)
+        
+        # Dropdown pentru culoare text
+        color_options = {
+            "Alb": "white",
+            "Negru": "black",
+            "Roșu": "#ef4444",
+            "Galben": "#fde047",
+            "Albastru": "#3b82f6",
+            "Verde": "#22c55e",
+            "Portocaliu": "#f97316",
+            "Mov": "#a21caf"
+        }
+        color_var = tk.StringVar(value="Alb")
+        color_frame = tk.Frame(text_win)
+        color_frame.pack(pady=(10, 5))
+        tk.Label(color_frame, text="Text color:").pack(side="left", padx=(0, 5))
+        color_menu = tk.OptionMenu(color_frame, color_var, *color_options.keys())
+        color_menu.pack(side="left")
+        
+        canvas = tk.Canvas(text_win, width=tk_img.width(), height=tk_img.height(), cursor="cross")
+        canvas.pack(padx=20, pady=10)
+        canvas.create_image(0, 0, anchor="nw", image=tk_img)
+        
+        # Variabile pentru selectarea zonei
+        rect = None
+        start_x = start_y = end_x = end_y = None, None, None, None
+        entry_widget = None
+        scale_x = self.current_image.width / tk_img.width()
+        scale_y = self.current_image.height / tk_img.height()
+        
+        def on_mouse_down(event):
+            nonlocal start_x, start_y, rect, entry_widget, end_x, end_y
+            start_x, start_y = event.x, event.y
+            end_x, end_y = event.x, event.y
+            if rect:
+                canvas.delete(rect)
+            rect = canvas.create_rectangle(start_x, start_y, start_x, start_y, outline="#facc15", width=2)
+            if entry_widget:
+                entry_widget.destroy()
+                entry_widget = None
+
+        def on_mouse_drag(event):
+            nonlocal rect, end_x, end_y
+            end_x, end_y = event.x, event.y
+            if rect:
+                canvas.coords(rect, start_x, start_y, end_x, end_y)
+
+        def on_mouse_up(event):
+            nonlocal end_x, end_y, entry_widget
+            end_x, end_y = event.x, event.y
+            x1, y1 = min(start_x, end_x), min(start_y, end_y)
+            x2, y2 = max(start_x, end_x), max(start_y, end_y)
+            if entry_widget:
+                entry_widget.destroy()
+            if abs(x2-x1) < 10 or abs(y2-y1) < 10:
+                return  # zona prea mică
+            entry_widget = tk.Entry(canvas, font=("Arial", 16))
+            entry_widget.place(x=x1, y=y1, width=max(40, x2-x1), height=max(30, y2-y1))
+            entry_widget.focus_set()
+
+        def on_ok():
+            nonlocal entry_widget, start_x, start_y, end_x, end_y
+            if not entry_widget or start_x is None or start_y is None or end_x is None or end_y is None:
+                messagebox.showwarning("Warning", "Select a text area și scrie text!")
+                return
+            text = entry_widget.get()
+            if not text.strip():
+                messagebox.showwarning("Warning", "Text is empty!")
+                return
+            
+            # Calculăm coordonatele reale pe imaginea originală
+            rx1 = int(min(start_x, end_x) * scale_x)
+            ry1 = int(min(start_y, end_y) * scale_y)
+            rx2 = int(max(start_x, end_x) * scale_x)
+            ry2 = int(max(start_y, end_y) * scale_y)
+            
+            if abs(rx2-rx1) < 5 or abs(ry2-ry1) < 5:
+                messagebox.showwarning("Warning", "Select a larger area for text!")
+                return
+            
+            # Salvăm pentru undo
+            self.push_undo()
+            
+            # Adăugăm textul pe imagine
+            img = self.current_image.copy()
+            from PIL import ImageDraw, ImageFont
+            draw = ImageDraw.Draw(img)
+            
+            # Calculăm mărimea fontului
+            font_size = max(60, int((ry2-ry1)))
+            font = None
+            
+            # Încercăm să găsim un font TrueType
+            font_paths = [
+                "arial.ttf",
+                "C:/Windows/Fonts/arial.ttf", 
+                "/System/Library/Fonts/Arial.ttf",
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+            ]
+            
+            for font_path in font_paths:
+                try:
+                    font = ImageFont.truetype(font_path, size=font_size)
+                    break
+                except:
+                    continue
+            
+            if font is None:
+                font = ImageFont.load_default()
+            
+            # Calculăm dimensiunile textului
+            try:
+                bbox = draw.textbbox((0, 0), text, font=font)
+                w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            except AttributeError:
+                w, h = draw.textsize(text, font=font)
+            
+            # Centrăm textul în zona selectată
+            tx = rx1 + max(0, ((rx2-rx1)-w)//2)
+            ty = ry1 + max(0, ((ry2-ry1)-h)//2)
+            
+            # Obținem culoarea selectată
+            text_color = color_options.get(color_var.get(), "white")
+            
+            # Desenăm textul
+            draw.text((tx, ty), text, fill=text_color, font=font)
+            
+            # Actualizăm imaginea
+            self.current_image = img
+            self.display_image()
+            self.update_info(f"Text added: '{text}' at x={rx1}, y={ry1}, w={rx2-rx1}, h={ry2-ry1}, color={text_color}")
+            text_win.destroy()
+
+        def on_cancel():
+            text_win.destroy()
+
+        # Legăm evenimentele mouse-ului
+        canvas.bind("<ButtonPress-1>", on_mouse_down)
+        canvas.bind("<B1-Motion>", on_mouse_drag)
+        canvas.bind("<ButtonRelease-1>", on_mouse_up)
+
+        # Butoane
+        btn_frame = tk.Frame(text_win)
+        btn_frame.pack(pady=5)
+        ok_btn = tk.Button(btn_frame, text="Add Text", width=12, command=on_ok)
+        ok_btn.pack(side="left", padx=5)
+        cancel_btn = tk.Button(btn_frame, text="Cancel", width=12, command=on_cancel)
+        cancel_btn.pack(side="left", padx=5)
 
     def apply_filter(self):
         """Displays a dropdown for filter selection and applies the effect to the current image."""
@@ -230,6 +282,7 @@ class PhotoEditorApp:
                 self.update_info(f"✅ Filter '{dialog.result}' applied!")
             except Exception as e:
                 messagebox.showerror("Error", f"Could not apply filter: {e}")
+
     def __init__(self):
         # Configure theme for customtkinter
         ctk.set_appearance_mode("dark")
@@ -253,7 +306,6 @@ class PhotoEditorApp:
         
         # Configure drag and drop
         self.setup_drag_drop()
-
 
     def init_ai_models(self):
         """Initializes AI models."""
@@ -377,10 +429,6 @@ class PhotoEditorApp:
             self.display_image()
             self._slider_original = None
 
-        def on_slider_start(event=None):
-            if self.current_image:
-                self._slider_original = self.current_image.copy()
-
         def reset_sliders():
             brightness_slider.set(1.0)
             contrast_slider.set(1.0)
@@ -498,7 +546,7 @@ class PhotoEditorApp:
         crop_aspect_btn = ctk.CTkButton(control_frame, text="Aspect Ratio Crop", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#818cf8", hover_color="#6366f1", command=crop_aspect_ratio)
         crop_aspect_btn.pack(pady=5)
 
-        # --- Other AI buttons ---
+        # --- Add Text Button ---
         add_text_btn = ctk.CTkButton(
             control_frame,
             text="Add Text",
@@ -506,6 +554,8 @@ class PhotoEditorApp:
             width=150
         )
         add_text_btn.pack(pady=5)
+
+        # --- Other AI buttons ---
         upscale_btn = ctk.CTkButton(
             control_frame,
             text="Upscale Image",
@@ -569,6 +619,7 @@ class PhotoEditorApp:
         self.progress = ctk.CTkProgressBar(control_frame)
         self.progress.pack(pady=20, padx=10, fill="x")
         self.progress.set(0)
+    
     def replace_background(self):
         """Removes the background and allows choosing a new background for the image."""
         if not self.current_image:
@@ -670,8 +721,6 @@ class PhotoEditorApp:
         self.edited_image_label = ctk.CTkLabel(edited_img_frame, text="No image loaded.", font=("Arial", 12))
         self.edited_image_label.pack(expand=True, fill="both")
 
-        # ...existing code...
-
         # Right panel - Original
         right_panel = ctk.CTkFrame(compare_frame)
         right_panel.pack(side="left", fill="both", expand=True, padx=(2,0))
@@ -703,8 +752,6 @@ class PhotoEditorApp:
         original_img_frame.pack(expand=True, fill="both")
         self.original_image_label = ctk.CTkLabel(original_img_frame, text="No image loaded.", font=("Arial", 12))
         self.original_image_label.pack(expand=True, fill="both")
-
-        # ...existing code...
     
     def create_info_panel(self, parent):
         """Creates the information panel."""
@@ -724,12 +771,6 @@ class PhotoEditorApp:
     def setup_drag_drop(self):
         """(Removed) No longer configures paste path or clipboard button."""
         pass
-    
-    # paste_image_path removed
-    
-    # add_quick_load_button removed
-    
-    # Removed hover handlers for drag and drop, no longer needed
     
     def is_valid_image_file(self, file_path):
         """Checks if the file is a valid image."""
@@ -833,18 +874,25 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             info_text = self.get_image_info_text()
             self.update_info(info_text)
         
-    def update_info(self, text):
-        """Appends a new message to the information panel, with numbering."""
+    def update_info(self, text, replace_last_if_progress=False):
+        """Appends a new message to the information panel, with numbering. If replace_last_if_progress is True, replaces the last progress message."""
         if not hasattr(self, '_info_history'):
             self._info_history = []
         # If this is a reset/load event, clear history
         if text.startswith("✅ Image loaded successfully!") or text.startswith("Image has been reset") or text.startswith("Load an image to see details."):
             self._info_history = []
-        self._info_history.append(text)
+        # Replace last progress message if needed
+        if replace_last_if_progress and self._info_history:
+            last = self._info_history[-1]
+            if last.startswith("Running ") or last.endswith("..."):
+                self._info_history[-1] = text
+            else:
+                self._info_history.append(text)
+        else:
+            self._info_history.append(text)
         # Build numbered info
         info_lines = []
         for idx, msg in enumerate(self._info_history, 1):
-            # Only number the first line of each message
             msg_lines = msg.splitlines()
             if msg_lines:
                 info_lines.append(f"{idx}. {msg_lines[0]}")
@@ -861,7 +909,7 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
         def worker():
             try:
                 self.progress.set(0.1)
-                self.update_info(f"Running {operation_name}...")
+                self.update_info(f"Running {operation_name}...", replace_last_if_progress=False)
                 # Save for undo
                 self.push_undo()
                 result = operation_func(self.current_image)
@@ -869,7 +917,7 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
                 self.current_image = result
                 self.display_image()
                 self.progress.set(1.0)
-                self.update_info(f"{operation_name} completed successfully!")
+                self.update_info(f"{operation_name} completed successfully!", replace_last_if_progress=True)
             except Exception as e:
                 messagebox.showerror("Error", f"Error in {operation_name}: {e}")
             finally:
@@ -965,72 +1013,7 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
                     messagebox.showerror("Error", f"Recognition error: {e}")
                 finally:
                     self.progress.set(0)
-            else:
-                messagebox.showwarning("Warning", "Please load an image first!")
-        
         threading.Thread(target=recognize, daemon=True).start()
-    
-    def save_image(self):
-        """Saves the current image."""
-        if self.current_image:
-            file_path = filedialog.asksaveasfilename(
-                title="Save image",
-                defaultextension=".png",
-                filetypes=[
-                    ("PNG", "*.png"),
-                    ("JPEG", "*.jpg"),
-                    ("All files", "*.*")
-                ]
-            )
-            
-            if file_path:
-                try:
-                    self.current_image.save(file_path)
-                    messagebox.showinfo("Success", "Image saved successfully!")
-                except Exception as e:
-                    messagebox.showerror("Error", f"Could not save image: {e}")
-        else:
-            messagebox.showwarning("Warning", "No image to save!")
-    
-    def reset_image(self):
-        """Resets the image to its original state and resets adjustment sliders."""
-        if self.original_image:
-            self.push_undo()
-            self.current_image = self.original_image.copy()
-            # Also resets sliders if they exist
-            if hasattr(self, '_reset_sliders_ref') and callable(self._reset_sliders_ref):
-                self._reset_sliders_ref()
-            self.display_image()
-            self.update_info("Image has been reset to original state.")
-            self.update_undo_redo_buttons()
-        else:
-            messagebox.showwarning("Warning", "No image loaded!")
-    
-    def update_undo_redo_buttons(self):
-        """Enables/disables Undo/Redo buttons and updates modification progress."""
-        undo_stack = getattr(self, '_undo_stack', [])
-        redo_stack = getattr(self, '_redo_stack', [])
-        # Undo
-        if hasattr(self, 'undo_btn'):
-            if undo_stack:
-                self.undo_btn.configure(state="normal")
-            else:
-                self.undo_btn.configure(state="disabled")
-        # Redo
-
-        if hasattr(self, 'redo_btn'):
-            if redo_stack:
-                self.redo_btn.configure(state="normal")
-            else:
-                self.redo_btn.configure(state="disabled")
-        # Progres modificări
-        if hasattr(self, 'edit_progress_label'):
-            total = len(undo_stack) + 1 + len(redo_stack) if (undo_stack or redo_stack) else 1
-            current = len(undo_stack) + 1 if (undo_stack or redo_stack) else 1
-            if total > 1:
-                self.edit_progress_label.configure(text=f"{current}/{total}")
-            else:
-                self.edit_progress_label.configure(text="")
 
     def run(self):
         """Start the application."""
@@ -1152,3 +1135,30 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
                 messagebox.showinfo("Success", f"Image exported as {fmt}!")
             except Exception as e:
                 messagebox.showerror("Error", f"Could not export image: {e}")
+
+    def save_image(self):
+        """Saves the current image."""
+        if not self.current_image:
+            messagebox.showwarning("Warning", "No image to save!")
+            return
+        if self.image_path:
+            try:
+                self.current_image.save(self.image_path)
+                messagebox.showinfo("Success", "Image saved successfully!")
+            except Exception as e:
+                messagebox.showerror("Error", f"Could not save image: {e}")
+        else:
+            self.export_image_as()
+
+    def reset_image(self):
+        """Resets the image to original state."""
+        if self.original_image:
+            self.push_undo()
+            self.current_image = self.original_image.copy()
+            self.display_image()
+            # Reset sliders if they exist
+            if hasattr(self, '_reset_sliders_ref'):
+                self._reset_sliders_ref()
+            self.update_info("Image has been reset to original state.")
+        else:
+            messagebox.showwarning("Warning", "No original image to reset to!")
