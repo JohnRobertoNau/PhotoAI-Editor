@@ -25,16 +25,16 @@ class PhotoEditorApp:
         
         # Color selection dropdown at top
         color_options = {
-            "Alb": "white",
-            "Negru": "black",
-            "Roșu": "#ef4444",
-            "Galben": "#fde047",
-            "Albastru": "#3b82f6",
-            "Verde": "#22c55e",
-            "Portocaliu": "#f97316",
-            "Mov": "#a21caf"
+            "White": "white",
+            "Black": "black",
+            "Red": "#ef4444",
+            "Yellow": "#fde047",
+            "Blue": "#3b82f6",
+            "Green": "#22c55e",
+            "Orange": "#f97316",
+            "Purple": "#a21caf"
         }
-        color_var = tk.StringVar(value="Alb")
+        color_var = tk.StringVar(value="White")
         color_frame = tk.Frame(text_win)
         color_frame.pack(pady=10)
         tk.Label(color_frame, text="Text color:", font=("Arial", 12)).pack(side="left", padx=(0, 5))
