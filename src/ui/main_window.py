@@ -14,13 +14,13 @@ from ..utils.image_processor import ImageProcessor
 
 class PhotoEditorApp:
     def add_text_to_image(self):
-        """Permite adăugarea de text pe imagine prin selectarea unei zone cu mouse-ul și introducerea textului cu alegerea culorii."""
+        """Permite adăugarea de text pe imagine prin selectarea unei zone cu mouse-ul și introducerea textului cu alegerea culorii. Include editare interactivă."""
         if not self.current_image:
             messagebox.showwarning("Warning", "No image loaded!")
             return
         text_win = tk.Toplevel(self.root)
         text_win.title("Add Text")
-        text_win.geometry("800x650")
+        text_win.geometry("800x700")
         text_win.resizable(False, False)
         
         # Color selection dropdown at top
@@ -35,119 +35,259 @@ class PhotoEditorApp:
             "Purple": "#a21caf"
         }
         color_var = tk.StringVar(value="White")
-        color_frame = tk.Frame(text_win)
-        color_frame.pack(pady=10)
+        
+        # Control panel at top
+        controls_frame = tk.Frame(text_win)
+        controls_frame.pack(pady=10)
+        
+        # Color selection
+        color_frame = tk.Frame(controls_frame)
+        color_frame.pack(side="left", padx=(0, 20))
         tk.Label(color_frame, text="Text color:", font=("Arial", 12)).pack(side="left", padx=(0, 5))
         color_menu = tk.OptionMenu(color_frame, color_var, *color_options.keys())
         color_menu.config(font=("Arial", 10))
         color_menu.pack(side="left")
         
+        # Font size control
+        size_frame = tk.Frame(controls_frame)
+        size_frame.pack(side="left", padx=(0, 20))
+        tk.Label(size_frame, text="Font size:", font=("Arial", 12)).pack(side="left", padx=(0, 5))
+        size_var = tk.IntVar(value=60)
+        size_spinbox = tk.Spinbox(size_frame, from_=20, to=200, textvariable=size_var, width=5)
+        size_spinbox.pack(side="left")
+        
+        # Text input
+        text_frame = tk.Frame(controls_frame)
+        text_frame.pack(side="left")
+        tk.Label(text_frame, text="Text:", font=("Arial", 12)).pack(side="left", padx=(0, 5))
+        text_var = tk.StringVar()
+        text_entry = tk.Entry(text_frame, textvariable=text_var, width=20, font=("Arial", 12))
+        text_entry.pack(side="left")
+        
         disp_img = self.current_image.copy()
         disp_img.thumbnail((760, 560), Image.LANCZOS)
         tk_img = ImageTk.PhotoImage(disp_img)
         canvas = tk.Canvas(text_win, width=tk_img.width(), height=tk_img.height(), cursor="cross")
-        canvas.pack(padx=20, pady=20)
+        canvas.pack(padx=20, pady=10)
         canvas.create_image(0, 0, anchor="nw", image=tk_img)
-        rect = None
-        start_x = start_y = end_x = end_y = None, None, None, None
-        entry_widget = None
+        
+        # Variables for text management
+        text_objects = []  # List of text objects with their properties
+        selected_text = None
+        dragging = False
+        drag_start_x = drag_start_y = 0
         scale_x = self.current_image.width / tk_img.width()
         scale_y = self.current_image.height / tk_img.height()
-        def on_mouse_down(event):
-            nonlocal start_x, start_y, rect, entry_widget, end_x, end_y
-            start_x, start_y = event.x, event.y
-            end_x, end_y = event.x, event.y
-            if rect:
-                canvas.delete(rect)
-            rect = canvas.create_rectangle(start_x, start_y, start_x, start_y, outline="#facc15", width=2)
-            if entry_widget:
-                entry_widget.destroy()
-        def on_mouse_drag(event):
-            nonlocal rect, end_x, end_y
-            end_x, end_y = event.x, event.y
-            if rect:
-                canvas.coords(rect, start_x, start_y, end_x, end_y)
-        def on_mouse_up(event):
-            nonlocal end_x, end_y, entry_widget
-            end_x, end_y = event.x, event.y
-            x1, y1 = min(start_x, end_x), min(start_y, end_y)
-            x2, y2 = max(start_x, end_x), max(start_y, end_y)
-            if entry_widget:
-                entry_widget.destroy()
-            if abs(x2-x1) < 10 or abs(y2-y1) < 10:
-                return  # zona prea mică
-            entry_widget = tk.Entry(canvas, font=("Arial", 16))
-            entry_widget.place(x=x1, y=y1, width=max(40, x2-x1), height=max(30, y2-y1))
-            entry_widget.focus_set()
-        def on_ok():
-            nonlocal entry_widget, start_x, start_y, end_x, end_y
-            if not entry_widget or start_x is None or start_y is None or end_x is None or end_y is None:
-                messagebox.showwarning("Warning", "Select a text area și scrie text!")
+        
+        def add_text_at_position(x, y):
+            """Add text at specified position on canvas"""
+            text = text_var.get().strip()
+            if not text:
+                messagebox.showwarning("Warning", "Please enter some text!")
                 return
-            text = entry_widget.get()
-            if not text.strip():
-                messagebox.showwarning("Warning", "Text is empty!")
+                
+            color = color_options.get(color_var.get(), "white")
+            size = size_var.get()
+            
+            # Create text object on canvas for preview
+            text_id = canvas.create_text(x, y, text=text, fill=color, font=("Arial", size), anchor="center")
+            
+            # Store text properties
+            text_obj = {
+                'id': text_id,
+                'text': text,
+                'x': x,
+                'y': y,
+                'color': color,
+                'size': size,
+                'real_x': int(x * scale_x),
+                'real_y': int(y * scale_y)
+            }
+            text_objects.append(text_obj)
+            
+            # Create selection rectangle
+            bbox = canvas.bbox(text_id)
+            if bbox:
+                rect_id = canvas.create_rectangle(bbox[0]-5, bbox[1]-5, bbox[2]+5, bbox[3]+5, 
+                                                outline="blue", width=2, dash=(5,5))
+                text_obj['rect_id'] = rect_id
+        
+        def update_text_display():
+            """Update the visual representation of text"""
+            nonlocal selected_text
+            if selected_text:
+                text_obj = selected_text
+                color = color_options.get(color_var.get(), "white")
+                size = size_var.get()
+                text = text_var.get().strip()
+                
+                if text:
+                    # Update canvas text
+                    canvas.itemconfig(text_obj['id'], text=text, fill=color, font=("Arial", size))
+                    
+                    # Update stored properties
+                    text_obj['text'] = text
+                    text_obj['color'] = color
+                    text_obj['size'] = size
+                    text_obj['real_x'] = int(text_obj['x'] * scale_x)
+                    text_obj['real_y'] = int(text_obj['y'] * scale_y)
+                    
+                    # Update selection rectangle
+                    bbox = canvas.bbox(text_obj['id'])
+                    if bbox and 'rect_id' in text_obj:
+                        canvas.coords(text_obj['rect_id'], bbox[0]-5, bbox[1]-5, bbox[2]+5, bbox[3]+5)
+        
+        def on_canvas_click(event):
+            nonlocal selected_text, dragging, drag_start_x, drag_start_y
+            
+            # Check if clicking on existing text
+            clicked_item = canvas.find_closest(event.x, event.y)[0]
+            clicked_text = None
+            
+            for text_obj in text_objects:
+                if text_obj['id'] == clicked_item:
+                    clicked_text = text_obj
+                    break
+            
+            if clicked_text:
+                # Select existing text
+                selected_text = clicked_text
+                text_var.set(clicked_text['text'])
+                color_var.set([k for k, v in color_options.items() if v == clicked_text['color']][0])
+                size_var.set(clicked_text['size'])
+                
+                # Prepare for dragging
+                dragging = True
+                drag_start_x = event.x
+                drag_start_y = event.y
+                
+                # Highlight selected text
+                for text_obj in text_objects:
+                    if 'rect_id' in text_obj:
+                        canvas.itemconfig(text_obj['rect_id'], outline="gray" if text_obj != selected_text else "blue")
+            else:
+                # Add new text at click position
+                add_text_at_position(event.x, event.y)
+        
+        def on_canvas_drag(event):
+            nonlocal dragging, drag_start_x, drag_start_y, selected_text
+            
+            if dragging and selected_text:
+                # Calculate movement
+                dx = event.x - drag_start_x
+                dy = event.y - drag_start_y
+                
+                # Move text
+                canvas.move(selected_text['id'], dx, dy)
+                if 'rect_id' in selected_text:
+                    canvas.move(selected_text['rect_id'], dx, dy)
+                
+                # Update stored position
+                selected_text['x'] += dx
+                selected_text['y'] += dy
+                selected_text['real_x'] = int(selected_text['x'] * scale_x)
+                selected_text['real_y'] = int(selected_text['y'] * scale_y)
+                
+                # Update drag start position
+                drag_start_x = event.x
+                drag_start_y = event.y
+        
+        def on_canvas_release(event):
+            nonlocal dragging
+            dragging = False
+        
+        def delete_selected_text():
+            nonlocal selected_text
+            if selected_text:
+                canvas.delete(selected_text['id'])
+                if 'rect_id' in selected_text:
+                    canvas.delete(selected_text['rect_id'])
+                text_objects.remove(selected_text)
+                selected_text = None
+                text_var.set("")
+        
+        def apply_text_to_image():
+            """Apply all text objects to the actual image"""
+            if not text_objects:
+                messagebox.showwarning("Warning", "No text to apply!")
                 return
-            rx1 = int(min(start_x, end_x) * scale_x)
-            ry1 = int(min(start_y, end_y) * scale_y)
-            rx2 = int(max(start_x, end_x) * scale_x)
-            ry2 = int(max(start_y, end_y) * scale_y)
-            if abs(rx2-rx1) < 5 or abs(ry2-ry1) < 5:
-                messagebox.showwarning("Warning", "Select a larger area for text!")
-                return
+            
             self.push_undo()
             img = self.current_image.copy()
             from PIL import ImageDraw, ImageFont
             draw = ImageDraw.Draw(img)
-            # Font cu mărime mult mai mare - folosim toată înălțimea textbox-ului
-            font_size = max(60, int((ry2-ry1)))  # Folosim toată înălțimea ca mărime font
             
-            font = None
-            # Încercăm să găsim un font TrueType
-            font_paths = [
-                "arial.ttf",
-                "C:/Windows/Fonts/arial.ttf", 
-                "/System/Library/Fonts/Arial.ttf",
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-                "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
-            ]
-            
-            for font_path in font_paths:
+            for text_obj in text_objects:
+                # Scale font size to match the actual image size
+                scaled_font_size = int(text_obj['size'] * max(scale_x, scale_y))
+                
+                # Try to load a TrueType font
+                font = None
+                font_paths = [
+                    "arial.ttf",
+                    "C:/Windows/Fonts/arial.ttf", 
+                    "/System/Library/Fonts/Arial.ttf",
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+                ]
+                
+                for font_path in font_paths:
+                    try:
+                        font = ImageFont.truetype(font_path, size=scaled_font_size)
+                        break
+                    except:
+                        continue
+                
+                if font is None:
+                    font = ImageFont.load_default()
+                
+                # Get text dimensions for centering
                 try:
-                    font = ImageFont.truetype(font_path, size=font_size)
-                    break
-                except:
-                    continue
+                    bbox = draw.textbbox((0, 0), text_obj['text'], font=font)
+                    w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+                except AttributeError:
+                    w, h = draw.textsize(text_obj['text'], font=font)
+                
+                # Draw text centered at position
+                tx = text_obj['real_x'] - w//2
+                ty = text_obj['real_y'] - h//2
+                draw.text((tx, ty), text_obj['text'], fill=text_obj['color'], font=font)
             
-            if font is None:
-                font = ImageFont.load_default()
-            # Use textbbox instead of textsize for newer Pillow versions
-            try:
-                bbox = draw.textbbox((0, 0), text, font=font)
-                w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-            except AttributeError:
-                # Fallback for older Pillow versions
-                w, h = draw.textsize(text, font=font)
-            tx = rx1 + max(0, ((rx2-rx1)-w)//2)
-            ty = ry1 + max(0, ((ry2-ry1)-h)//2)
-            # Textul cu culoarea selectată
-            text_color = color_options.get(color_var.get(), "white")
-            draw.text((tx, ty), text, fill=text_color, font=font)
             self.current_image = img
             self.display_image()
-            self.update_info(f"Text added: '{text}' (color: {color_var.get()})")
+            self.update_info(f"Applied {len(text_objects)} text element(s) to image")
             text_win.destroy()
+        
         def on_cancel():
             text_win.destroy()
-        canvas.bind("<ButtonPress-1>", on_mouse_down)
-        canvas.bind("<B1-Motion>", on_mouse_drag)
-        canvas.bind("<ButtonRelease-1>", on_mouse_up)
+        
+        # Bind events to update text in real-time
+        text_var.trace('w', lambda *args: update_text_display())
+        color_var.trace('w', lambda *args: update_text_display())
+        size_var.trace('w', lambda *args: update_text_display())
+        
+        # Bind canvas events
+        canvas.bind("<Button-1>", on_canvas_click)
+        canvas.bind("<B1-Motion>", on_canvas_drag)
+        canvas.bind("<ButtonRelease-1>", on_canvas_release)
+        
+        # Instructions
+        instructions = tk.Label(text_win, text="Click to add text • Click text to select • Drag to move • Modify controls to edit", 
+                              font=("Arial", 10), fg="gray")
+        instructions.pack(pady=5)
+        
+        # Buttons
         btn_frame = tk.Frame(text_win)
-        btn_frame.pack(pady=5)
-        ok_btn = tk.Button(btn_frame, text="Add Text", width=12, command=on_ok)
-        ok_btn.pack(side="left", padx=5)
-        cancel_btn = tk.Button(btn_frame, text="Cancel", width=12, command=on_cancel)
+        btn_frame.pack(pady=10)
+        apply_btn = tk.Button(btn_frame, text="Apply to Image", width=15, command=apply_text_to_image, 
+                             font=("Arial", 10), bg="#4CAF50", fg="white")
+        apply_btn.pack(side="left", padx=5)
+        delete_btn = tk.Button(btn_frame, text="Delete Selected", width=15, command=delete_selected_text, 
+                              font=("Arial", 10), bg="#f44336", fg="white")
+        delete_btn.pack(side="left", padx=5)
+        cancel_btn = tk.Button(btn_frame, text="Cancel", width=12, command=on_cancel, font=("Arial", 10))
         cancel_btn.pack(side="left", padx=5)
+        
         text_win.mainloop()
     def push_undo(self):
         if not hasattr(self, '_undo_stack'):
