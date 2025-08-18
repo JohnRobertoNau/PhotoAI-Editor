@@ -212,7 +212,14 @@ class PhotoEditorApp:
                 messagebox.showwarning("Warning", "No text to apply!")
                 return
             
-            self.push_undo()
+            # Create description of texts being added
+            text_descriptions = [text_obj['text'][:20] + "..." if len(text_obj['text']) > 20 else text_obj['text'] for text_obj in text_objects]
+            if len(text_descriptions) == 1:
+                operation_name = f"Add Text: '{text_descriptions[0]}'"
+            else:
+                operation_name = f"Add {len(text_descriptions)} Texts"
+                
+            self.push_undo(operation_name)
             img = self.current_image.copy()
             from PIL import ImageDraw, ImageFont
             draw = ImageDraw.Draw(img)
@@ -254,6 +261,7 @@ class PhotoEditorApp:
                 draw.text((tx, ty), text_obj['text'], fill=text_obj['color'], font=font)
             
             self.current_image = img
+            self._current_operation = operation_name  # Track current operation
             self.display_image()
             self.update_info(f"Applied {len(text_objects)} text element(s) to image")
             text_win.destroy()
@@ -289,38 +297,63 @@ class PhotoEditorApp:
         cancel_btn.pack(side="left", padx=5)
         
         text_win.mainloop()
-    def push_undo(self):
+    def push_undo(self, operation_name="Operation"):
         if not hasattr(self, '_undo_stack'):
             self._undo_stack = []
+        if not hasattr(self, '_undo_operations'):
+            self._undo_operations = []
         if not hasattr(self, '_redo_stack'):
             self._redo_stack = []
+        if not hasattr(self, '_redo_operations'):
+            self._redo_operations = []
         if self.current_image:
             self._undo_stack.append(self.current_image.copy())
+            self._undo_operations.append(operation_name)
             # Limit stack size if needed
             if len(self._undo_stack) > 20:
                 self._undo_stack.pop(0)
+                self._undo_operations.pop(0)
+            # Clear redo stack when new operation is added
+            self._redo_stack.clear()
+            self._redo_operations.clear()
         self.update_undo_redo_buttons()
 
     def undo(self):
         if hasattr(self, '_undo_stack') and self._undo_stack:
             if not hasattr(self, '_redo_stack'):
                 self._redo_stack = []
+            if not hasattr(self, '_redo_operations'):
+                self._redo_operations = []
             if self.current_image:
                 self._redo_stack.append(self.current_image.copy())
+                # Get current operation name for redo
+                current_op = getattr(self, '_current_operation', "Operation")
+                self._redo_operations.append(current_op)
+            
             self.current_image = self._undo_stack.pop()
+            undone_operation = self._undo_operations.pop() if hasattr(self, '_undo_operations') and self._undo_operations else "Unknown operation"
             self.display_image()
             self.update_image_info()
+            self.update_info(f"⬅️ Undo: {undone_operation}")
         self.update_undo_redo_buttons()
 
     def redo(self):
         if hasattr(self, '_redo_stack') and self._redo_stack:
             if not hasattr(self, '_undo_stack'):
                 self._undo_stack = []
+            if not hasattr(self, '_undo_operations'):
+                self._undo_operations = []
             if self.current_image:
                 self._undo_stack.append(self.current_image.copy())
+                current_op = getattr(self, '_current_operation', "Operation")
+                self._undo_operations.append(current_op)
+            
             self.current_image = self._redo_stack.pop()
+            redone_operation = self._redo_operations.pop() if hasattr(self, '_redo_operations') and self._redo_operations else "Unknown operation"
+            self._current_operation = redone_operation
             self.display_image()
             self.update_image_info()
+            self.update_info(f"➡️ Redo: {redone_operation}")
         self.update_undo_redo_buttons()
 
 
@@ -329,9 +362,6 @@ class PhotoEditorApp:
         if not self.current_image:
             messagebox.showwarning("Warning", "Please load an image first!")
             return
-
-        # Save state for undo before applying the filter
-        self.push_undo()
 
         import tkinter.simpledialog
         from PIL import ImageFilter, ImageOps, ImageEnhance
@@ -364,8 +394,11 @@ class PhotoEditorApp:
         dialog = FilterDialog(self.root, title="Apply Filter")
         if dialog.result and dialog.result in FILTERS:
             try:
+                # Save for undo with specific filter name
+                self.push_undo(f"Apply Filter: {dialog.result}")
                 filtered = FILTERS[dialog.result](self.current_image)
                 self.current_image = filtered
+                self._current_operation = f"Apply Filter: {dialog.result}"  # Track current operation
                 self.display_image()
                 self.update_info(f"✅ Filter '{dialog.result}' applied!")
             except Exception as e:
@@ -469,16 +502,6 @@ class PhotoEditorApp:
         title = ctk.CTkLabel(control_frame, text="AI Operations", font=("Arial", 16, "bold"))
         title.pack(pady=10)
 
-        # --- Undo/Redo buttons ---
-        undo_redo_frame = ctk.CTkFrame(control_frame)
-        undo_redo_frame.pack(pady=(5, 5))
-        self.undo_btn = ctk.CTkButton(undo_redo_frame, text="Undo", width=65, command=self.undo)
-        self.redo_btn = ctk.CTkButton(undo_redo_frame, text="Redo", width=65, command=self.redo)
-        self.undo_btn.pack(side="left", padx=(0, 5))
-        self.redo_btn.pack(side="left", padx=(5, 0))
-        self.edit_progress_label = ctk.CTkLabel(undo_redo_frame, text="")
-        self.edit_progress_label.pack(side="left", padx=(10,0))
-
         # --- Sliders for brightness, contrast, saturation ---
         from PIL import ImageEnhance
         self._slider_original = None  # To keep the original image for adjustments
@@ -504,7 +527,7 @@ class PhotoEditorApp:
             if self._slider_original is None:
                 return
             # Save for undo
-            self.push_undo()
+            self.push_undo("Adjust Image")
             # Final update (optional, since on_slider_change already updates)
             img = self._slider_original.copy()
             brightness = brightness_slider.get()
@@ -514,6 +537,7 @@ class PhotoEditorApp:
             saturation = saturation_slider.get()
             img = ImageEnhance.Color(img).enhance(saturation)
             self.current_image = img
+            self._current_operation = "Adjust Image"
             self.display_image()
             self._slider_original = None
 
@@ -528,8 +552,9 @@ class PhotoEditorApp:
             self._slider_original = None
             # Reset image to original (if exists)
             if self.original_image:
-                self.push_undo()
+                self.push_undo("Reset Sliders")
                 self.current_image = self.original_image.copy()
+                self._current_operation = "Reset Sliders"
                 self.display_image()
 
         self._reset_sliders_ref = reset_sliders  # reference for global reset
@@ -623,8 +648,9 @@ class PhotoEditorApp:
                 top = (h - new_h) // 2
                 right = left + new_w
                 bottom = top + new_h
-                self.push_undo()
+                self.push_undo("Aspect Ratio Crop")
                 self.current_image = self.current_image.crop((left, top, right, bottom))
+                self._current_operation = "Aspect Ratio Crop"
                 self.display_image()
                 self.update_info(f"Image cropped to {aspect} aspect ratio.")
             ok_btn = tk.Button(btn_frame, text="Crop", width=10, command=on_ok)
@@ -855,6 +881,16 @@ class PhotoEditorApp:
         title = ctk.CTkLabel(info_frame, text="Information", font=("Arial", 16, "bold"))
         title.pack(pady=10)
         
+        # --- Undo/Redo buttons ---
+        undo_redo_frame = ctk.CTkFrame(info_frame)
+        undo_redo_frame.pack(pady=(0, 10))
+        self.undo_btn = ctk.CTkButton(undo_redo_frame, text="Undo", width=65, command=self.undo)
+        self.redo_btn = ctk.CTkButton(undo_redo_frame, text="Redo", width=65, command=self.redo)
+        self.undo_btn.pack(side="left", padx=(0, 5))
+        self.redo_btn.pack(side="left", padx=(5, 0))
+        self.edit_progress_label = ctk.CTkLabel(undo_redo_frame, text="")
+        self.edit_progress_label.pack(side="left", padx=(10,0))
+        
         # Text widget for displaying information (read-only)
         self.info_text = ctk.CTkTextbox(info_frame, width=250, height=400)
         self.info_text.pack(pady=10, padx=10, fill="both", expand=True)
@@ -898,7 +934,7 @@ class PhotoEditorApp:
             self.update_image_info()
             
             # Positive feedback
-            self.update_info(f"✅ Image loaded successfully!\n\n{self.get_image_info_text()}")
+            self.update_info(f"Image loaded successfully!\n\n{self.get_image_info_text()}")
             
         except Exception as e:
             messagebox.showerror("Error", f"Could not load image: {e}")
@@ -1002,11 +1038,12 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             try:
                 self.progress.set(0.1)
                 self.update_info(f"Running {operation_name}...")
-                # Save for undo
-                self.push_undo()
+                # Save for undo with operation name
+                self.push_undo(operation_name)
                 result = operation_func(self.current_image)
                 self.progress.set(0.9)
                 self.current_image = result
+                self._current_operation = operation_name  # Track current operation
                 self.display_image()
                 self.progress.set(1.0)
                 self.update_info(f"{operation_name} completed successfully!")
@@ -1086,9 +1123,10 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
         if not self.current_image:
             messagebox.showwarning("Warning", "No image loaded!")
             return
-        self.push_undo()
+        self.push_undo("Generative Fill (No AI)")
         result = self.gen_fill.generative_fill_no_ai(self.current_image)
         self.current_image = result
+        self._current_operation = "Generative Fill (No AI)"
         self.display_image()
         self.update_info("Simple generative fill applied (no AI).")
     
@@ -1135,8 +1173,9 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
     def reset_image(self):
         """Resets the image to its original state and resets adjustment sliders."""
         if self.original_image:
-            self.push_undo()
+            self.push_undo("Reset Image")
             self.current_image = self.original_image.copy()
+            self._current_operation = "Reset Image"
             # Also resets sliders if they exist
             if hasattr(self, '_reset_sliders_ref') and callable(self._reset_sliders_ref):
                 self._reset_sliders_ref()
@@ -1179,8 +1218,9 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
     def rotate_image(self):
         """Rotește imaginea cu 90° la dreapta și salvează pentru undo."""
         if self.current_image:
-            self.push_undo()
+            self.push_undo("Rotate 90°")
             self.current_image = self.current_image.rotate(-90, expand=True)
+            self._current_operation = "Rotate 90°"
             self.display_image()
             self.update_info("Image rotated 90° to the right.")
         else:
@@ -1189,8 +1229,9 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
     def mirror_image(self):
         """Reflectă imaginea pe orizontală (mirror) și salvează pentru undo."""
         if self.current_image:
-            self.push_undo()
+            self.push_undo("Mirror")
             self.current_image = self.current_image.transpose(Image.FLIP_LEFT_RIGHT)
+            self._current_operation = "Mirror"
             self.display_image()
             self.update_info("Image mirrored horizontally.")
         else:
@@ -1199,8 +1240,9 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
     def flip_vertical_image(self):
         """Reflectă imaginea pe verticală (flip vertical) și salvează pentru undo."""
         if self.current_image:
-            self.push_undo()
+            self.push_undo("Flip Vertical")
             self.current_image = self.current_image.transpose(Image.FLIP_TOP_BOTTOM)
+            self._current_operation = "Flip Vertical"
             self.display_image()
             self.update_info("Image flipped vertically.")
         else:
@@ -1253,8 +1295,9 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             ry2 = int(y2 * scale_y)
             w, h = rx2 - rx1, ry2 - ry1
             if w > 0 and h > 0 and rx2 <= self.current_image.width and ry2 <= self.current_image.height:
-                self.push_undo()
+                self.push_undo("Crop")
                 self.current_image = self.current_image.crop((rx1, ry1, rx2, ry2))
+                self._current_operation = "Crop"
                 self.display_image()
                 self.update_info(f"Image cropped: x={rx1}, y={ry1}, w={w}, h={h}")
                 crop_win.destroy()
