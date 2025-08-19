@@ -417,6 +417,11 @@ class PhotoEditorApp:
         self.current_image = None
         self.original_image = None
         self.image_path = None
+        self.saved_files_history = []  # Lista pentru ultimele 5 fișiere salvate
+        self.history_file = "recent_files.json"  # Fișier pentru persistența istoricului
+        
+        # Încarcă istoricul salvat
+        self.load_history_from_file()
         
         # Initialize AI models
         self.init_ai_models()
@@ -475,15 +480,6 @@ class PhotoEditorApp:
         )
         load_btn.pack(side="left", padx=5, pady=5)
         
-        # Button for saving
-        save_btn = ctk.CTkButton(
-            toolbar,
-            text="Save",
-            command=self.save_image,
-            width=100
-        )
-        save_btn.pack(side="left", padx=5, pady=5)
-        
         # Button for reset
         reset_btn = ctk.CTkButton(
             toolbar,
@@ -492,6 +488,15 @@ class PhotoEditorApp:
             width=80
         )
         reset_btn.pack(side="left", padx=5, pady=5)
+        
+        # Button for file history
+        history_btn = ctk.CTkButton(
+            toolbar,
+            text="Recent Files",
+            command=self.show_file_history,
+            width=120
+        )
+        history_btn.pack(side="left", padx=5, pady=5)
     
     def create_control_panel(self, parent):
         """Creates the AI and image adjustment control panel."""
@@ -745,6 +750,9 @@ class PhotoEditorApp:
             try:
                 self.progress.set(0.1)
                 self.update_info("Removing background...")
+                # Save for undo before starting
+                self.push_undo("Replace Background")
+                
                 # Remove background (get RGBA image with transparency)
                 fg_img = self.bg_remover.remove_background(self.current_image)
 
@@ -778,6 +786,7 @@ class PhotoEditorApp:
                 result = Image.alpha_composite(bg_img, fg_img)
 
                 self.current_image = result.convert("RGB")
+                self._current_operation = "Replace Background"
                 self.display_image()
                 self.progress.set(1.0)
                 self.update_info("Background replaced successfully!")
@@ -1148,28 +1157,6 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
         
         threading.Thread(target=recognize, daemon=True).start()
     
-    def save_image(self):
-        """Saves the current image."""
-        if self.current_image:
-            file_path = filedialog.asksaveasfilename(
-                title="Save image",
-                defaultextension=".png",
-                filetypes=[
-                    ("PNG", "*.png"),
-                    ("JPEG", "*.jpg"),
-                    ("All files", "*.*")
-                ]
-            )
-            
-            if file_path:
-                try:
-                    self.current_image.save(file_path)
-                    messagebox.showinfo("Success", "Image saved successfully!")
-                except Exception as e:
-                    messagebox.showerror("Error", f"Could not save image: {e}")
-        else:
-            messagebox.showwarning("Warning", "No image to save!")
-    
     def reset_image(self):
         """Resets the image to its original state and resets adjustment sliders."""
         if self.original_image:
@@ -1213,7 +1200,15 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
 
     def run(self):
         """Start the application."""
+        # Configurează acțiunea de închidere
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.root.mainloop()
+    
+    def on_closing(self):
+        """Funcție apelată când se închide aplicația."""
+        # Salvează istoricul înainte de închidere
+        self.save_history_to_file()
+        self.root.destroy()
 
     def rotate_image(self):
         """Rotește imaginea cu 90° la dreapta și salvează pentru undo."""
@@ -1332,6 +1327,144 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
                 if fmt == "JPEG":
                     save_kwargs["quality"] = 95
                 self.current_image.save(file_path, format=fmt, **save_kwargs)
+                self.add_to_file_history(file_path)  # Adaugă în istoric
                 messagebox.showinfo("Success", f"Image exported as {fmt}!")
             except Exception as e:
                 messagebox.showerror("Error", f"Could not export image: {e}")
+    
+    def add_to_file_history(self, file_path):
+        """Adaugă un fișier în istoricul de fișiere salvate."""
+        import time
+        from pathlib import Path
+        
+        # Creează entry-ul pentru istoric
+        history_entry = {
+            'path': file_path,
+            'name': Path(file_path).name,
+            'timestamp': time.time(),
+            'size': self.get_file_size(file_path)
+        }
+        
+        # Elimină duplicatele (dacă există deja)
+        self.saved_files_history = [entry for entry in self.saved_files_history if entry['path'] != file_path]
+        
+        # Adaugă la început
+        self.saved_files_history.insert(0, history_entry)
+        
+        # Păstrează doar ultimele 5
+        if len(self.saved_files_history) > 5:
+            self.saved_files_history = self.saved_files_history[:5]
+        
+        # Salvează istoricul persistent
+        self.save_history_to_file()
+    
+    def get_file_size(self, file_path):
+        """Returnează dimensiunea fișierului în format lizibil."""
+        try:
+            size_bytes = os.path.getsize(file_path)
+            if size_bytes < 1024:
+                return f"{size_bytes} B"
+            elif size_bytes < 1024 * 1024:
+                return f"{size_bytes / 1024:.1f} KB"
+            else:
+                return f"{size_bytes / (1024 * 1024):.1f} MB"
+        except:
+            return "Unknown"
+    
+    def show_file_history(self):
+        """Afișează istoricul fișierelor salvate."""
+        if not self.saved_files_history:
+            messagebox.showinfo("Recent Files", "No recent files found.")
+            return
+        
+        # Creează fereastra pentru istoric
+        history_win = tk.Toplevel(self.root)
+        history_win.title("Recent Saved Files")
+        history_win.geometry("500x300")
+        history_win.resizable(False, False)
+        
+        # Título
+        title_label = tk.Label(history_win, text="Recent Saved Files", font=("Arial", 14, "bold"))
+        title_label.pack(pady=10)
+        
+        # Frame pentru lista de fișiere
+        files_frame = tk.Frame(history_win)
+        files_frame.pack(fill="both", expand=True, padx=20, pady=10)
+        
+        import time
+        for i, entry in enumerate(self.saved_files_history, 1):
+            # Frame pentru fiecare fișier
+            file_frame = tk.Frame(files_frame, relief="raised", bd=1)
+            file_frame.pack(fill="x", pady=5)
+            
+            # Informații despre fișier
+            file_info = f"{i}. {entry['name']}"
+            timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(entry['timestamp']))
+            file_details = f"Size: {entry['size']} | Saved: {timestamp}"
+            
+            # Label cu numele fișierului
+            name_label = tk.Label(file_frame, text=file_info, font=("Arial", 11, "bold"), anchor="w")
+            name_label.pack(fill="x", padx=10, pady=(5, 0))
+            
+            # Label cu detaliile
+            details_label = tk.Label(file_frame, text=file_details, font=("Arial", 9), fg="gray", anchor="w")
+            details_label.pack(fill="x", padx=10, pady=(0, 5))
+            
+            # Frame pentru butoane
+            btn_frame = tk.Frame(file_frame)
+            btn_frame.pack(fill="x", padx=10, pady=(0, 5))
+            
+            # Buton pentru a deschide fișierul
+            open_btn = tk.Button(btn_frame, text="Open", width=15,
+                               command=lambda path=entry['path']: self.open_file_from_history(path))
+            open_btn.pack(side="left")
+        
+        # Buton pentru a închide
+        close_btn = tk.Button(history_win, text="Close", width=10, command=history_win.destroy)
+        close_btn.pack(pady=10)
+        
+        history_win.transient(self.root)
+        history_win.grab_set()
+    
+    def open_file_from_history(self, file_path):
+        """Deschide un fișier din istoric."""
+        try:
+            if os.path.exists(file_path):
+                self.load_image_from_path(file_path)
+                messagebox.showinfo("Success", f"File loaded: {os.path.basename(file_path)}")
+            else:
+                messagebox.showwarning("File Not Found", f"The file no longer exists:\n{file_path}")
+                # Elimină din istoric
+                self.saved_files_history = [entry for entry in self.saved_files_history if entry['path'] != file_path]
+                self.save_history_to_file()  # Salvează modificările
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not open file: {e}")
+    
+    def save_history_to_file(self):
+        """Salvează istoricul fișierelor într-un fișier JSON."""
+        try:
+            import json
+            with open(self.history_file, 'w', encoding='utf-8') as f:
+                json.dump(self.saved_files_history, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"Error saving history: {e}")
+    
+    def load_history_from_file(self):
+        """Încarcă istoricul fișierelor dintr-un fișier JSON."""
+        try:
+            import json
+            if os.path.exists(self.history_file):
+                with open(self.history_file, 'r', encoding='utf-8') as f:
+                    self.saved_files_history = json.load(f)
+                # Validează că fișierele încă există și elimină cele care nu mai există
+                valid_history = []
+                for entry in self.saved_files_history:
+                    if os.path.exists(entry.get('path', '')):
+                        valid_history.append(entry)
+                self.saved_files_history = valid_history
+                # Salvează lista curățată
+                if len(valid_history) != len(self.saved_files_history):
+                    self.save_history_to_file()
+        except Exception as e:
+            print(f"Error loading history: {e}")
+            self.saved_files_history = []
