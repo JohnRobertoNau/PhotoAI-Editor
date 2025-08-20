@@ -497,6 +497,15 @@ class PhotoEditorApp:
             width=120
         )
         history_btn.pack(side="left", padx=5, pady=5)
+        
+        # Button for export
+        export_btn = ctk.CTkButton(
+            toolbar,
+            text="Export as...",
+            command=self.export_image_as,
+            width=120
+        )
+        export_btn.pack(side="left", padx=5, pady=5)
     
     def create_control_panel(self, parent):
         """Creates the AI and image adjustment control panel."""
@@ -669,73 +678,83 @@ class PhotoEditorApp:
         crop_aspect_btn = ctk.CTkButton(control_frame, text="Aspect Ratio Crop", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#818cf8", hover_color="#6366f1", command=crop_aspect_ratio)
         crop_aspect_btn.pack(pady=5)
 
-        # --- Other AI buttons ---
-        add_text_btn = ctk.CTkButton(
-            control_frame,
-            text="Add Text",
-            command=self.add_text_to_image,
-            width=150
-        )
-        add_text_btn.pack(pady=5)
+        # --- AI Operations Frame ---
+        ai_frame = ctk.CTkFrame(control_frame)
+        ai_frame.pack(pady=(10, 5), padx=5, fill="x")
+        
+        ai_title = ctk.CTkLabel(ai_frame, text="AI Operations", font=("Arial", 13, "bold"))
+        ai_title.pack(pady=(10, 5))
+        
         upscale_btn = ctk.CTkButton(
-            control_frame,
+            ai_frame,
             text="Upscale Image",
             command=self.upscale_image,
-            width=150
+            width=140
         )
-        upscale_btn.pack(pady=5)
+        upscale_btn.pack(pady=3)
 
         bg_remove_btn = ctk.CTkButton(
-            control_frame,
+            ai_frame,
             text="Remove Background",
             command=self.remove_background,
-            width=150
+            width=140
         )
-        bg_remove_btn.pack(pady=5)
+        bg_remove_btn.pack(pady=3)
 
         bg_replace_btn = ctk.CTkButton(
-            control_frame,
+            ai_frame,
             text="Replace Background",
             command=self.replace_background,
-            width=150
+            width=140
         )
-        bg_replace_btn.pack(pady=5)
-
-        filter_btn = ctk.CTkButton(
-            control_frame,
-            text="Apply Filter",
-            command=self.apply_filter,
-            width=150
-        )
-        filter_btn.pack(pady=5)
+        bg_replace_btn.pack(pady=3)
 
         gen_fill_btn = ctk.CTkButton(
-            control_frame,
+            ai_frame,
             text="Generative Fill",
             command=self.generative_fill,
-            width=150
+            width=140
         )
-        gen_fill_btn.pack(pady=5)
-
-        gen_fill_simple_btn = ctk.CTkButton(
-            control_frame,
-            text="Generative Fill (No AI)",
-            command=self.generative_fill_simple,
-            width=150
-        )
-        gen_fill_simple_btn.pack(pady=5)
+        gen_fill_btn.pack(pady=3)
 
         recognize_btn = ctk.CTkButton(
-            control_frame,
+            ai_frame,
             text="Recognize Image",
             command=self.recognize_image,
-            width=150
+            width=140
         )
-        recognize_btn.pack(pady=5)
+        recognize_btn.pack(pady=(3, 10))
 
-        # --- Export Button ---
-        export_btn = ctk.CTkButton(control_frame, text="Export as...", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#facc15", hover_color="#eab308", command=self.export_image_as)
-        export_btn.pack(pady=5)
+        # --- Image Tools Frame ---
+        tools_frame = ctk.CTkFrame(control_frame)
+        tools_frame.pack(pady=5, padx=5, fill="x")
+        
+        tools_title = ctk.CTkLabel(tools_frame, text="Image Tools", font=("Arial", 13, "bold"))
+        tools_title.pack(pady=(10, 5))
+        
+        add_text_btn = ctk.CTkButton(
+            tools_frame,
+            text="Add Text",
+            command=self.add_text_to_image,
+            width=140
+        )
+        add_text_btn.pack(pady=3)
+
+        filter_btn = ctk.CTkButton(
+            tools_frame,
+            text="Apply Filter",
+            command=self.apply_filter,
+            width=140
+        )
+        filter_btn.pack(pady=3)
+
+        gen_fill_simple_btn = ctk.CTkButton(
+            tools_frame,
+            text="Generative Fill (No AI)",
+            command=self.generative_fill_simple,
+            width=140
+        )
+        gen_fill_simple_btn.pack(pady=(3, 10))
 
         self.progress = ctk.CTkProgressBar(control_frame)
         self.progress.pack(pady=20, padx=10, fill="x")
@@ -974,37 +993,48 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             self.load_image_from_path(file_path)
     
     def display_image(self):
-        """Displays the original and edited image side-by-side in the interface, both scaled to the same maximum size. Suportă zoom independent pentru ambele imagini."""
+        """Displays the original and edited image side-by-side in the interface, both scaled to the same maximum size. Suportă zoom independent pentru ambele imagini cu păstrarea aspect ratio-ului."""
         max_w, max_h = self._zoom_display_size if hasattr(self, '_zoom_display_size') else (600, 400)
+        
         # Original
         if self.original_image:
             zoom_orig = self._zoom_factor_orig if hasattr(self, '_zoom_factor_orig') else 1.0
-            # Calculate display size: allow zoom > 1.0 to exceed max_w/max_h
-            base_w, base_h = max_w, max_h
-            disp_w, disp_h = int(base_w * zoom_orig), int(base_h * zoom_orig)
             orig_disp = self.original_image.copy()
-            # If zoom > 1, allow upscaling beyond the default display size
-            if zoom_orig > 1.0:
-                # Don't limit to max_width/max_height, just resize to (disp_w, disp_h)
-                orig_disp = orig_disp.resize((disp_w, disp_h), Image.LANCZOS)
+            
+            # Calculate the base display size maintaining aspect ratio
+            base_display = self.image_processor.resize_for_display(orig_disp, max_width=max_w, max_height=max_h)
+            
+            # Apply zoom factor while maintaining aspect ratio
+            if zoom_orig != 1.0:
+                new_width = int(base_display.width * zoom_orig)
+                new_height = int(base_display.height * zoom_orig)
+                orig_disp = self.original_image.resize((new_width, new_height), Image.LANCZOS)
             else:
-                orig_disp = self.image_processor.resize_for_display(orig_disp, max_width=disp_w, max_height=disp_h)
+                orig_disp = base_display
+                
             orig_photo = ImageTk.PhotoImage(orig_disp)
             self.original_image_label.configure(image=orig_photo, text="")
             self.original_image_label.image = orig_photo
         else:
             self.original_image_label.configure(image=None, text="No image loaded.")
             self.original_image_label.image = None
+            
         # Edited
         if self.current_image:
             zoom_edit = self._zoom_factor_edit if hasattr(self, '_zoom_factor_edit') else 1.0
-            base_w, base_h = max_w, max_h
-            disp_w, disp_h = int(base_w * zoom_edit), int(base_h * zoom_edit)
             edit_disp = self.current_image.copy()
-            if zoom_edit > 1.0:
-                edit_disp = edit_disp.resize((disp_w, disp_h), Image.LANCZOS)
+            
+            # Calculate the base display size maintaining aspect ratio
+            base_display = self.image_processor.resize_for_display(edit_disp, max_width=max_w, max_height=max_h)
+            
+            # Apply zoom factor while maintaining aspect ratio
+            if zoom_edit != 1.0:
+                new_width = int(base_display.width * zoom_edit)
+                new_height = int(base_display.height * zoom_edit)
+                edit_disp = self.current_image.resize((new_width, new_height), Image.LANCZOS)
             else:
-                edit_disp = self.image_processor.resize_for_display(edit_disp, max_width=disp_w, max_height=disp_h)
+                edit_disp = base_display
+                
             edit_photo = ImageTk.PhotoImage(edit_disp)
             self.edited_image_label.configure(image=edit_photo, text="")
             self.edited_image_label.image = edit_photo
