@@ -1407,25 +1407,48 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             messagebox.showinfo("Recent Files", "No recent files found.")
             return
         
-        # Creează fereastra pentru istoric
+        # Creează fereastra pentru istoric - mai mare și redimensionabilă
         history_win = tk.Toplevel(self.root)
         history_win.title("Recent Saved Files")
-        history_win.geometry("500x300")
-        history_win.resizable(False, False)
+        history_win.geometry("600x500")
+        history_win.resizable(True, True)
+        history_win.minsize(500, 400)
         
         # Título
         title_label = tk.Label(history_win, text="Recent Saved Files", font=("Arial", 14, "bold"))
         title_label.pack(pady=10)
         
-        # Frame pentru lista de fișiere
-        files_frame = tk.Frame(history_win)
-        files_frame.pack(fill="both", expand=True, padx=20, pady=10)
+        # Frame principal cu scroll
+        main_frame = tk.Frame(history_win)
+        main_frame.pack(fill="both", expand=True, padx=20, pady=10)
+        
+        # Canvas și scrollbar pentru scroll
+        canvas = tk.Canvas(main_frame)
+        scrollbar = tk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Pack canvas și scrollbar
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Bind mouse wheel pentru scroll
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
         
         import time
         for i, entry in enumerate(self.saved_files_history, 1):
             # Frame pentru fiecare fișier
-            file_frame = tk.Frame(files_frame, relief="raised", bd=1)
-            file_frame.pack(fill="x", pady=5)
+            file_frame = tk.Frame(scrollable_frame, relief="raised", bd=1)
+            file_frame.pack(fill="x", pady=5, padx=5)
             
             # Informații despre fișier
             file_info = f"{i}. {entry['name']}"
@@ -1449,9 +1472,13 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
                                command=lambda path=entry['path']: self.open_file_from_history(path))
             open_btn.pack(side="left")
         
+        # Frame pentru butonul de închidere (în afara scroll-ului)
+        bottom_frame = tk.Frame(history_win)
+        bottom_frame.pack(fill="x", pady=10)
+        
         # Buton pentru a închide
-        close_btn = tk.Button(history_win, text="Close", width=10, command=history_win.destroy)
-        close_btn.pack(pady=10)
+        close_btn = tk.Button(bottom_frame, text="Close", width=10, command=lambda: [canvas.unbind_all("<MouseWheel>"), history_win.destroy()])
+        close_btn.pack()
         
         history_win.transient(self.root)
         history_win.grab_set()
