@@ -297,6 +297,134 @@ class PhotoEditorApp:
         cancel_btn.pack(side="left", padx=5)
         
         text_win.mainloop()
+    
+    def _calculate_image_diff(self, before_image, after_image):
+        """Calculează diferențele între două imagini și returnează doar zona modificată."""
+        import numpy as np
+        
+        # Convert to same size if different
+        if before_image.size != after_image.size:
+            return {
+                'type': 'size_change',
+                'before_image': before_image,
+                'after_image': after_image
+            }
+        
+        # Convert to numpy arrays for comparison
+        before_array = np.array(before_image)
+        after_array = np.array(after_image)
+        
+        # Find differences
+        if before_array.shape != after_array.shape:
+            return {
+                'type': 'format_change',
+                'before_image': before_image,
+                'after_image': after_image
+            }
+        
+        # Calculate pixel differences
+        if len(before_array.shape) == 3:
+            diff = np.any(before_array != after_array, axis=2)
+        else:
+            diff = before_array != after_array
+        
+        # If no differences, return None
+        if not np.any(diff):
+            return None
+        
+        # Find bounding box of changes
+        rows = np.any(diff, axis=1)
+        cols = np.any(diff, axis=0)
+        
+        if not np.any(rows) or not np.any(cols):
+            return None
+        
+        rmin, rmax = np.where(rows)[0][[0, -1]]
+        cmin, cmax = np.where(cols)[0][[0, -1]]
+        
+        # Add some padding
+        padding = 5
+        rmin = max(0, rmin - padding)
+        cmin = max(0, cmin - padding)
+        rmax = min(before_image.height - 1, rmax + padding)
+        cmax = min(before_image.width - 1, cmax + padding)
+        
+        bbox = (cmin, rmin, cmax + 1, rmax + 1)
+        
+        return {
+            'type': 'patch',
+            'bbox': bbox,
+            'before_patch': before_image.crop(bbox),
+            'after_patch': after_image.crop(bbox)
+        }
+    
+    def _apply_diff(self, base_image, diff_data, reverse=False):
+        """Aplică diferențele pe o imagine de bază."""
+        if not diff_data:
+            return base_image
+        
+        if diff_data['type'] == 'no_change':
+            return base_image
+        
+        if diff_data['type'] == 'full_image':
+            return diff_data['image'].copy()
+        
+        if diff_data['type'] in ['size_change', 'format_change']:
+            if reverse:
+                return diff_data['before_image'].copy()
+            else:
+                return diff_data['after_image'].copy()
+        
+        if diff_data['type'] == 'patch':
+            result = base_image.copy()
+            bbox = diff_data['bbox']
+            
+            if reverse:
+                patch = diff_data['before_patch']
+            else:
+                patch = diff_data['after_patch']
+            
+            result.paste(patch, (bbox[0], bbox[1]))
+            return result
+        
+        return base_image
+    
+    def get_memory_usage_info(self):
+        """Returnează informații despre utilizarea memoriei pentru undo/redo."""
+        import sys
+        
+        if not hasattr(self, '_undo_stack') or not hasattr(self, '_redo_stack'):
+            return "Undo/Redo: Not initialized"
+        
+        undo_count = len(self._undo_stack)
+        redo_count = len(self._redo_stack)
+        
+        # Estimate memory usage
+        total_memory = 0
+        for item in self._undo_stack:
+            if item.get('type') == 'full_image' and 'image' in item:
+                # Full image size
+                img = item['image']
+                total_memory += img.width * img.height * len(img.getbands()) * 4  # 4 bytes per channel
+            elif item.get('type') == 'patch' and 'before_patch' in item and 'after_patch' in item:
+                # Patch size
+                before = item['before_patch']
+                after = item['after_patch']
+                total_memory += (before.width * before.height + after.width * after.height) * len(before.getbands()) * 4
+        
+        for item in self._redo_stack:
+            if item.get('type') == 'full_image' and 'image' in item:
+                img = item['image']
+                total_memory += img.width * img.height * len(img.getbands()) * 4
+            elif item.get('type') == 'patch' and 'before_patch' in item and 'after_patch' in item:
+                before = item['before_patch']
+                after = item['after_patch']
+                total_memory += (before.width * before.height + after.width * after.height) * len(before.getbands()) * 4
+        
+        memory_mb = total_memory / (1024 * 1024)
+        
+        return f"Undo: {undo_count} | Redo: {redo_count} | Memory: {memory_mb:.1f} MB"
+    
     def push_undo(self, operation_name="Operation"):
         if not hasattr(self, '_undo_stack'):
             self._undo_stack = []
@@ -306,13 +434,33 @@ class PhotoEditorApp:
             self._redo_stack = []
         if not hasattr(self, '_redo_operations'):
             self._redo_operations = []
+        
         if self.current_image:
-            self._undo_stack.append(self.current_image.copy())
+            # NEW: Save only differences instead of full images
+            if hasattr(self, '_previous_image') and self._previous_image:
+                diff_data = self._calculate_image_diff(self._previous_image, self.current_image)
+                if diff_data:
+                    self._undo_stack.append(diff_data)
+                else:
+                    # No changes detected, don't save anything
+                    return
+            else:
+                # First image - save full image as baseline
+                self._undo_stack.append({
+                    'type': 'full_image',
+                    'image': self.current_image.copy()
+                })
+            
             self._undo_operations.append(operation_name)
-            # Limit stack size if needed
-            if len(self._undo_stack) > 20:
+            
+            # Update previous image reference
+            self._previous_image = self.current_image.copy()
+            
+            # Limit stack size if needed (can afford more entries now)
+            if len(self._undo_stack) > 50:
                 self._undo_stack.pop(0)
                 self._undo_operations.pop(0)
+                
             # Clear redo stack when new operation is added
             self._redo_stack.clear()
             self._redo_operations.clear()
@@ -324,14 +472,38 @@ class PhotoEditorApp:
                 self._redo_stack = []
             if not hasattr(self, '_redo_operations'):
                 self._redo_operations = []
+            
+            # Get the diff data to undo
+            diff_data = self._undo_stack.pop()
+            undone_operation = self._undo_operations.pop() if hasattr(self, '_undo_operations') and self._undo_operations else "Unknown operation"
+            
             if self.current_image:
-                self._redo_stack.append(self.current_image.copy())
-                # Get current operation name for redo
+                # Save current state for redo (as diff)
+                if hasattr(self, '_previous_image') and self._previous_image:
+                    redo_diff = self._calculate_image_diff(self._previous_image, self.current_image)
+                    if redo_diff:
+                        self._redo_stack.append(redo_diff)
+                else:
+                    # Save as full image if no previous reference
+                    self._redo_stack.append({
+                        'type': 'full_image',
+                        'image': self.current_image.copy()
+                    })
+                
                 current_op = getattr(self, '_current_operation', "Operation")
                 self._redo_operations.append(current_op)
+                
+                # Apply the reverse diff to get previous state
+                if hasattr(self, '_previous_image') and self._previous_image:
+                    self.current_image = self._apply_diff(self._previous_image, diff_data, reverse=True)
+                else:
+                    # If it's a full image diff, just use it directly
+                    if diff_data.get('type') == 'full_image':
+                        self.current_image = diff_data['image'].copy()
+                
+                # Update previous image reference
+                self._previous_image = self.current_image.copy()
             
-            self.current_image = self._undo_stack.pop()
-            undone_operation = self._undo_operations.pop() if hasattr(self, '_undo_operations') and self._undo_operations else "Unknown operation"
             self.display_image()
             self.update_image_info()
             self.update_info(f"⬅️ Undo: {undone_operation}")
@@ -343,13 +515,38 @@ class PhotoEditorApp:
                 self._undo_stack = []
             if not hasattr(self, '_undo_operations'):
                 self._undo_operations = []
+            
+            # Get the diff data to redo
+            diff_data = self._redo_stack.pop()
+            redone_operation = self._redo_operations.pop() if hasattr(self, '_redo_operations') and self._redo_operations else "Unknown operation"
+            
             if self.current_image:
-                self._undo_stack.append(self.current_image.copy())
+                # Save current state for undo (as diff)
+                if hasattr(self, '_previous_image') and self._previous_image:
+                    undo_diff = self._calculate_image_diff(self._previous_image, self.current_image)
+                    if undo_diff:
+                        self._undo_stack.append(undo_diff)
+                else:
+                    # Save as full image if no previous reference
+                    self._undo_stack.append({
+                        'type': 'full_image',
+                        'image': self.current_image.copy()
+                    })
+                
                 current_op = getattr(self, '_current_operation', "Operation")
                 self._undo_operations.append(current_op)
+                
+                # Apply the diff to get the redo state
+                if hasattr(self, '_previous_image') and self._previous_image:
+                    self.current_image = self._apply_diff(self._previous_image, diff_data, reverse=False)
+                else:
+                    # If it's a full image diff, just use it directly
+                    if diff_data.get('type') == 'full_image':
+                        self.current_image = diff_data['image'].copy()
+                
+                # Update previous image reference
+                self._previous_image = self.current_image.copy()
             
-            self.current_image = self._redo_stack.pop()
-            redone_operation = self._redo_operations.pop() if hasattr(self, '_redo_operations') and self._redo_operations else "Unknown operation"
             self._current_operation = redone_operation
             self.display_image()
             self.update_image_info()
@@ -958,8 +1155,23 @@ class PhotoEditorApp:
             self.image_path = file_path
             self.original_image = Image.open(file_path)
             self.current_image = self.original_image.copy()
+            
+            # Initialize diff tracking
+            self._previous_image = self.current_image.copy()
+            
+            # Clear undo/redo stacks when loading new image
+            if hasattr(self, '_undo_stack'):
+                self._undo_stack.clear()
+            if hasattr(self, '_undo_operations'):
+                self._undo_operations.clear()
+            if hasattr(self, '_redo_stack'):
+                self._redo_stack.clear()
+            if hasattr(self, '_redo_operations'):
+                self._redo_operations.clear()
+                
             self.display_image()
             self.update_image_info()
+            self.update_undo_redo_buttons()
             
             # Positive feedback
             self.update_info(f"Image loaded successfully!\n\n{self.get_image_info_text()}")
@@ -1203,7 +1415,7 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             messagebox.showwarning("Warning", "No image loaded!")
     
     def update_undo_redo_buttons(self):
-        """Enables/disables Undo/Redo buttons and updates modification progress."""
+        """Enables/disables Undo/Redo buttons and updates modification progress with memory info."""
         undo_stack = getattr(self, '_undo_stack', [])
         redo_stack = getattr(self, '_redo_stack', [])
         # Undo
@@ -1213,20 +1425,25 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             else:
                 self.undo_btn.configure(state="disabled")
         # Redo
-
         if hasattr(self, 'redo_btn'):
             if redo_stack:
                 self.redo_btn.configure(state="normal")
             else:
                 self.redo_btn.configure(state="disabled")
-        # Progres modificări
+        # Progress and memory info
         if hasattr(self, 'edit_progress_label'):
             total = len(undo_stack) + 1 + len(redo_stack) if (undo_stack or redo_stack) else 1
             current = len(undo_stack) + 1 if (undo_stack or redo_stack) else 1
+            
+            # Add memory usage info
+            memory_info = self.get_memory_usage_info()
+            
             if total > 1:
-                self.edit_progress_label.configure(text=f"{current}/{total}")
+                progress_text = f"{current}/{total}\n{memory_info}"
             else:
-                self.edit_progress_label.configure(text="")
+                progress_text = memory_info if undo_stack or redo_stack else ""
+                
+            self.edit_progress_label.configure(text=progress_text)
 
     def run(self):
         """Start the application."""

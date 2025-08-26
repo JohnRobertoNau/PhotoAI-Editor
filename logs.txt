@@ -1,0 +1,239 @@
+commit e8e38f23992c265ae2c6c63e95ac74fae8713982
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Thu Aug 21 14:09:11 2025 +0300
+
+    repaired the file history window
+
+commit 1487698e9cfbbd453426f24a42ff9e29cf22fb26
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Wed Aug 20 12:36:14 2025 +0300
+
+    fixed buttons and zoom
+
+commit 47e3ebb1e78c1138011a75d28af154270a458e36
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Tue Aug 19 10:52:05 2025 +0300
+
+    added the file history implementation
+
+commit 5e2ded973f3e3993d280f40d088ef73e1747a804
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Mon Aug 18 12:46:13 2025 +0300
+
+    modified undo redo implementation
+
+commit bf5c9862013f4c6edc440aa609c1e2e3877af607
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Thu Aug 14 13:15:45 2025 +0300
+
+    finished the text on image implementation
+
+commit 943eee85d729b942ba11d61576f7069983afe34e
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Wed Aug 13 12:32:45 2025 +0300
+
+    removed files
+
+commit 72ee048bf2a22bb93729ca8ec789e54ea44a52a3
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Wed Aug 13 12:20:41 2025 +0300
+
+    removed files
+
+commit f82c59046906f692257fef931e4970def38d165d
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Wed Aug 13 12:16:44 2025 +0300
+
+    color menu for textbox
+
+commit 3b10f1855d91c8d28126c3c512bc84f5420d8bc2
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Wed Aug 13 11:50:30 2025 +0300
+
+    added the textbox implementation
+
+commit b39df63c3cd975826378607641b5cab9e6a690be
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Tue Aug 12 12:44:22 2025 +0300
+
+    added state listing
+
+commit aacac8f97d5de5ac30310863a8887a9eca8c13b6
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Tue Aug 12 12:13:46 2025 +0300
+
+    added the dimension implementation
+
+commit 89c3f4e9f57e94643f873f35efe535720215ab10
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Thu Aug 7 13:50:18 2025 +0300
+
+    finished today
+
+commit fe15efd30360b6e9b1aba42995305006f258811b
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Thu Aug 7 11:15:42 2025 +0300
+
+    repaired the zoom functionality bug
+
+commit 1ab4177a9bf3edcb51bda0ac9bf359927036a28b
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Thu Aug 7 10:33:40 2025 +0300
+
+    added the zoom in and out implementation
+
+commit 7690a739d5b0bde7e6fa4bf9eab8d24a9314745f
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Wed Aug 6 15:06:20 2025 +0300
+
+    rounded corners
+
+commit 5a6b49c4e9d0ab13a13f2d544da05251caba34ec
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Wed Aug 6 12:11:01 2025 +0300
+
+    solved the brightness bug
+
+commit 8a76a1bdd78386f3e5b7b3d030cb3463e5dd144f
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Tue Aug 5 12:55:50 2025 +0300
+
+    added a prompt text for generative fill
+
+commit c3d572af9fa74f728a65f5e9af4e886b539f8e6d
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Mon Aug 4 16:30:59 2025 +0300
+
+    added sth new
+
+commit 4adff27d78330befa370da82deed6e3c4d0db2c8
+Author: John Nau <118887821+JohnRobertoNau@users.noreply.github.com>
+Date:   Mon Aug 4 11:41:31 2025 +0300
+
+    Update README.md
+
+commit a3baf9a3232754dcdb70cfda802d01182efdcf2f
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Sat Aug 2 15:45:30 2025 +0300
+
+    fina
+
+commit 062e51aafbd6c701c810a918be84c9ce2a3cccfe
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Sat Aug 2 15:40:53 2025 +0300
+
+    fina
+
+commit 033f902d1ac2b042bd3fd2fccd6747faee369b19
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Sat Aug 2 15:39:15 2025 +0300
+
+    final readme2
+
+commit 2842856c420ab1e61dc61148db033fd42e8b8f39
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Sat Aug 2 15:38:10 2025 +0300
+
+    final readme
+
+commit f80b79bca68faab8e5e8a262ab6819529e36d560
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Sat Aug 2 15:33:20 2025 +0300
+
+    finished the app
+
+commit 873a81fd11108a5c31fe68f4096412f404699e9a
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Thu Jul 31 13:48:14 2025 +0300
+
+    added more filters
+
+commit fbdba911e3106b6e26fa534e403cd7066615e0df
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Thu Jul 31 12:33:35 2025 +0300
+
+    added the color+ filter
+
+commit 9275895d16fcc57ccd73e9578fc8550f678d4635
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Wed Jul 30 11:54:59 2025 +0300
+
+    added the save with different formats implementation
+
+commit 657f2efb2005133403ce6dc8246b3134fe983da3
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Wed Jul 30 11:44:44 2025 +0300
+
+    added the flip vertical implementation
+
+commit 00f699b2fa2fddafd0e27f919aff4f1a92716cad
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Tue Jul 29 11:57:19 2025 +0300
+
+    added the mirror implementation
+
+commit ce9fdfe1893548729311874d045769c2052dcb04
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Tue Jul 29 11:50:28 2025 +0300
+
+    solved images size bug
+
+commit df090c76ad7bceda11c803d61d048141b438a147
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Mon Jul 28 12:11:47 2025 +0300
+
+    added the crop implementation
+
+commit 48e35bef00ea89836fce79ec5b15eefa3af381e5
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Mon Jul 28 11:59:35 2025 +0300
+
+    added the rotate implementation
+
+commit 606f32b7767b62f56767a5f39fdf98616a03e63a
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Thu Jul 24 15:04:23 2025 +0300
+
+    final version
+
+commit fc6a4d23f0cd127bac761f37b6e0f7e5c1af8bce
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Wed Jul 23 12:26:39 2025 +0300
+
+    removed the upscale model
+
+commit f79b644e605819c605e4f798225f8fd2f841ab80
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Wed Jul 23 11:13:19 2025 +0300
+
+    verifying i pushed it all
+
+commit 394e3c76ec4d92ea1bf47579d87da2c4ea9fcf4e
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Tue Jul 22 15:03:15 2025 +0300
+
+    added undo-redo buttons
+
+commit 9d82b8e74e98ef48fe547f46cd64ec934efdcd61
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Tue Jul 22 14:11:11 2025 +0300
+
+    added brightness contrast and saturation
+
+commit 616340fb1d022e3539036a05efc9001983c2217e
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Tue Jul 22 13:22:46 2025 +0300
+
+    added filters
+
+commit 744c192026d7770ce8de7d9841b2a19eebb0de1f
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Tue Jul 22 11:53:21 2025 +0300
+
+    added background replace implementation
+
+commit d14268166abeb6e034779ed7d4d891e4221bec1b
+Author: John Nau <nau.john.roberto@gmail.com>
+Date:   Mon Jul 21 14:08:43 2025 +0300
+
+    my first commit
