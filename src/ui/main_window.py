@@ -5,12 +5,99 @@ from PIL import Image, ImageTk
 import threading
 from pathlib import Path
 import os
+import numpy as np
+import pickle
+import gzip
+from enum import Enum
+from abc import ABC, abstractmethod
+import time
 
 from ..models.upscaler import ImageUpscaler
 from ..models.background_remover import BackgroundRemover
 from ..models.generative_fill import GenerativeFill
 from ..models.image_recognition import ImageRecognition
 from ..utils.image_processor import ImageProcessor
+
+class OperationType(Enum):
+    """Tipurile de operații pentru sistemul de undo/redo"""
+    NORMAL = "normal"      # Filtre, ajustări, transformări simple
+    AI = "ai"             # Generative fill, background removal
+    DRAWING = "drawing"   # Brush, pen, shapes
+
+class UndoState:
+    """Stare simplificată pentru undo/redo cu compresie adaptivă"""
+    
+    def __init__(self, image: Image.Image, operation_name: str, operation_type: OperationType):
+        self.operation_name = operation_name
+        self.operation_type = operation_type
+        self.timestamp = time.time()
+        
+        # Compresie adaptivă bazată pe tipul operației
+        if operation_type == OperationType.AI:
+            # Pentru AI: compresie mai bună dar mai lentă
+            self.compressed_image = self._compress_image_high(image)
+        else:
+            # Pentru normal/drawing: compresie rapidă
+            self.compressed_image = self._compress_image_fast(image)
+    
+    def _compress_image_high(self, image: Image.Image) -> bytes:
+        """Compresie de înaltă calitate pentru operații AI"""
+        img_array = np.array(image)
+        return gzip.compress(pickle.dumps(img_array), compresslevel=9)
+    
+    def _compress_image_fast(self, image: Image.Image) -> bytes:
+        """Compresie rapidă pentru operații normale"""
+        img_array = np.array(image)
+        return gzip.compress(pickle.dumps(img_array), compresslevel=3)
+    
+    def get_image(self) -> Image.Image:
+        """Decomprimă și returnează imaginea"""
+        img_array = pickle.loads(gzip.decompress(self.compressed_image))
+        return Image.fromarray(img_array)
+    
+    def get_memory_size(self) -> int:
+        """Returnează mărimea în memorie"""
+        return len(self.compressed_image)
+
+def classify_operation(operation_name: str) -> OperationType:
+    """Clasifică operația bazat pe nume"""
+    ai_operations = [
+        'generative fill', 'background removal', 'remove background',
+        'image recognition', 'generate', 'inpaint'
+    ]
+    
+    drawing_operations = [
+        'brush', 'pen', 'draw', 'paint', 'line', 'rectangle', 
+        'circle', 'text', 'shape'
+    ]
+    
+    # Operații normale (filtre, ajustări, transformări) - inclusiv upscale non-AI
+    normal_operations = [
+        'filter', 'blur', 'sharpen', 'brightness', 'contrast', 
+        'saturation', 'hue', 'gamma', 'levels', 'curves',
+        'grayscale', 'sepia', 'invert', 'edge', 'emboss',
+        'rotate', 'flip', 'crop', 'resize', 'scale', 'upscale'
+    ]
+    
+    operation_lower = operation_name.lower()
+    
+    # Verifică mai întâi operațiile normale (pentru a avea prioritate)
+    for normal_op in normal_operations:
+        if normal_op in operation_lower:
+            return OperationType.NORMAL
+    
+    # Apoi verifică operațiile AI
+    for ai_op in ai_operations:
+        if ai_op in operation_lower:
+            return OperationType.AI
+    
+    # În final verifică operațiile de desenare
+    for draw_op in drawing_operations:
+        if draw_op in operation_lower:
+            return OperationType.DRAWING
+    
+    # Default: operație normală
+    return OperationType.NORMAL
 
 class PhotoEditorApp:
     def add_text_to_image(self):
@@ -391,166 +478,129 @@ class PhotoEditorApp:
     
     def get_memory_usage_info(self):
         """Returnează informații despre utilizarea memoriei pentru undo/redo."""
-        import sys
-        
         if not hasattr(self, '_undo_stack') or not hasattr(self, '_redo_stack'):
             return "Undo/Redo: Not initialized"
         
         undo_count = len(self._undo_stack)
         redo_count = len(self._redo_stack)
         
-        # Estimate memory usage
-        total_memory = 0
-        for item in self._undo_stack:
-            if item.get('type') == 'full_image' and 'image' in item:
-                # Full image size
-                img = item['image']
-                total_memory += img.width * img.height * len(img.getbands()) * 4  # 4 bytes per channel
-            elif item.get('type') == 'patch' and 'before_patch' in item and 'after_patch' in item:
-                # Patch size
-                before = item['before_patch']
-                after = item['after_patch']
-                total_memory += (before.width * before.height + after.width * after.height) * len(before.getbands()) * 4
+        # Simple estimate: each image is approximately same size as current
+        if self.current_image:
+            # Rough estimate: width * height * 3 channels * 4 bytes per pixel
+            img_size_mb = (self.current_image.width * self.current_image.height * 3 * 4) / (1024 * 1024)
+            total_memory_mb = (undo_count + redo_count) * img_size_mb
+        else:
+            total_memory_mb = 0
         
-        for item in self._redo_stack:
-            if item.get('type') == 'full_image' and 'image' in item:
-                img = item['image']
-                total_memory += img.width * img.height * len(img.getbands()) * 4
-            elif item.get('type') == 'patch' and 'before_patch' in item and 'after_patch' in item:
-                before = item['before_patch']
-                after = item['after_patch']
-                total_memory += (before.width * before.height + after.width * after.height) * len(before.getbands()) * 4
-        
-        memory_mb = total_memory / (1024 * 1024)
-        
-        return f"Undo: {undo_count} | Redo: {redo_count} | Memory: {memory_mb:.1f} MB"
+        return f"Undo: {undo_count} | Redo: {redo_count} | Memory: {total_memory_mb:.1f} MB"
     
     def push_undo(self, operation_name="Operation"):
-        if not hasattr(self, '_undo_stack'):
-            self._undo_stack = []
-        if not hasattr(self, '_undo_operations'):
-            self._undo_operations = []
-        if not hasattr(self, '_redo_stack'):
-            self._redo_stack = []
-        if not hasattr(self, '_redo_operations'):
-            self._redo_operations = []
+        """Versiune simplificată și robustă pentru undo"""
+        if not self.current_image:
+            return
         
-        if self.current_image:
-            # NEW: Save only differences instead of full images
-            if hasattr(self, '_previous_image') and self._previous_image:
-                diff_data = self._calculate_image_diff(self._previous_image, self.current_image)
-                if diff_data:
-                    self._undo_stack.append(diff_data)
-                else:
-                    # No changes detected, don't save anything
-                    return
+        try:
+            # Determinăm tipul operației
+            operation_type = classify_operation(operation_name)
+            
+            # Salvează starea ÎNAINTE de operație (imaginea curentă)
+            state = UndoState(self.current_image, operation_name, operation_type)
+            
+            # Adaugă în stack
+            self.undo_stack.append(state)
+            
+            # Contorizează tipurile de operații
+            if operation_type == OperationType.AI:
+                self.ai_operations += 1
             else:
-                # First image - save full image as baseline
-                self._undo_stack.append({
-                    'type': 'full_image',
-                    'image': self.current_image.copy()
-                })
+                self.normal_operations += 1
             
-            self._undo_operations.append(operation_name)
+            # Limitează mărimea stack-ului
+            if len(self.undo_stack) > self.max_operations:
+                removed = self.undo_stack.pop(0)
+                if removed.operation_type == OperationType.AI:
+                    self.ai_operations -= 1
+                else:
+                    self.normal_operations -= 1
             
-            # Update previous image reference
-            self._previous_image = self.current_image.copy()
+            # Șterge redo stack
+            self.redo_stack.clear()
             
-            # Limit stack size if needed (can afford more entries now)
-            if len(self._undo_stack) > 50:
+        except Exception as e:
+            print(f"Error in push_undo: {e}")
+            # Fallback la sistemul simplu în caz de eroare
+            if not hasattr(self, '_undo_stack'):
+                self._undo_stack = []
+            self._undo_stack.append(self.current_image.copy())
+            if len(self._undo_stack) > 30:
                 self._undo_stack.pop(0)
-                self._undo_operations.pop(0)
-                
-            # Clear redo stack when new operation is added
-            self._redo_stack.clear()
-            self._redo_operations.clear()
+        
         self.update_undo_redo_buttons()
 
     def undo(self):
-        if hasattr(self, '_undo_stack') and self._undo_stack:
-            if not hasattr(self, '_redo_stack'):
-                self._redo_stack = []
-            if not hasattr(self, '_redo_operations'):
-                self._redo_operations = []
-            
-            # Get the diff data to undo
-            diff_data = self._undo_stack.pop()
-            undone_operation = self._undo_operations.pop() if hasattr(self, '_undo_operations') and self._undo_operations else "Unknown operation"
-            
+        """Versiune simplificată și robustă pentru undo"""
+        if not self.undo_stack:
+            return
+        
+        try:
+            # Salvează imaginea curentă pentru redo
             if self.current_image:
-                # Save current state for redo (as diff)
-                if hasattr(self, '_previous_image') and self._previous_image:
-                    redo_diff = self._calculate_image_diff(self._previous_image, self.current_image)
-                    if redo_diff:
-                        self._redo_stack.append(redo_diff)
-                else:
-                    # Save as full image if no previous reference
-                    self._redo_stack.append({
-                        'type': 'full_image',
-                        'image': self.current_image.copy()
-                    })
-                
-                current_op = getattr(self, '_current_operation', "Operation")
-                self._redo_operations.append(current_op)
-                
-                # Apply the reverse diff to get previous state
-                if hasattr(self, '_previous_image') and self._previous_image:
-                    self.current_image = self._apply_diff(self._previous_image, diff_data, reverse=True)
-                else:
-                    # If it's a full image diff, just use it directly
-                    if diff_data.get('type') == 'full_image':
-                        self.current_image = diff_data['image'].copy()
-                
-                # Update previous image reference
-                self._previous_image = self.current_image.copy()
+                current_state = UndoState(self.current_image, "Current State", OperationType.NORMAL)
+                self.redo_stack.append(current_state)
             
+            # Restaurează starea anterioară
+            previous_state = self.undo_stack.pop()
+            self.current_image = previous_state.get_image()
+            
+            # Actualizează interfața
             self.display_image()
             self.update_image_info()
-            self.update_info(f"⬅️ Undo: {undone_operation}")
+            self.update_info(f"⬅️ Undo: {previous_state.operation_name}")
+            
+            # Actualizează contoarele
+            if previous_state.operation_type == OperationType.AI:
+                self.ai_operations -= 1
+            else:
+                self.normal_operations -= 1
+            
+        except Exception as e:
+            print(f"Error in undo: {e}")
+            # Fallback la sistemul vechi
+            if hasattr(self, '_undo_stack') and self._undo_stack:
+                self.current_image = self._undo_stack.pop()
+                self.display_image()
+                self.update_image_info()
+        
         self.update_undo_redo_buttons()
 
     def redo(self):
-        if hasattr(self, '_redo_stack') and self._redo_stack:
-            if not hasattr(self, '_undo_stack'):
-                self._undo_stack = []
-            if not hasattr(self, '_undo_operations'):
-                self._undo_operations = []
-            
-            # Get the diff data to redo
-            diff_data = self._redo_stack.pop()
-            redone_operation = self._redo_operations.pop() if hasattr(self, '_redo_operations') and self._redo_operations else "Unknown operation"
-            
+        """Versiune simplificată și robustă pentru redo"""
+        if not self.redo_stack:
+            return
+        
+        try:
+            # Salvează imaginea curentă pentru undo
             if self.current_image:
-                # Save current state for undo (as diff)
-                if hasattr(self, '_previous_image') and self._previous_image:
-                    undo_diff = self._calculate_image_diff(self._previous_image, self.current_image)
-                    if undo_diff:
-                        self._undo_stack.append(undo_diff)
-                else:
-                    # Save as full image if no previous reference
-                    self._undo_stack.append({
-                        'type': 'full_image',
-                        'image': self.current_image.copy()
-                    })
-                
-                current_op = getattr(self, '_current_operation', "Operation")
-                self._undo_operations.append(current_op)
-                
-                # Apply the diff to get the redo state
-                if hasattr(self, '_previous_image') and self._previous_image:
-                    self.current_image = self._apply_diff(self._previous_image, diff_data, reverse=False)
-                else:
-                    # If it's a full image diff, just use it directly
-                    if diff_data.get('type') == 'full_image':
-                        self.current_image = diff_data['image'].copy()
-                
-                # Update previous image reference
-                self._previous_image = self.current_image.copy()
+                current_state = UndoState(self.current_image, "Before Redo", OperationType.NORMAL)
+                self.undo_stack.append(current_state)
             
-            self._current_operation = redone_operation
+            # Restaurează starea din redo
+            redo_state = self.redo_stack.pop()
+            self.current_image = redo_state.get_image()
+            
+            # Actualizează interfața
             self.display_image()
             self.update_image_info()
-            self.update_info(f"➡️ Redo: {redone_operation}")
+            self.update_info(f"➡️ Redo: {redo_state.operation_name}")
+            
+        except Exception as e:
+            print(f"Error in redo: {e}")
+            # Fallback la sistemul vechi
+            if hasattr(self, '_redo_stack') and self._redo_stack:
+                self.current_image = self._redo_stack.pop()
+                self.display_image()
+                self.update_image_info()
+        
         self.update_undo_redo_buttons()
 
 
@@ -617,6 +667,9 @@ class PhotoEditorApp:
         self.saved_files_history = []  # Lista pentru ultimele 5 fișiere salvate
         self.history_file = "recent_files.json"  # Fișier pentru persistența istoricului
         
+        # Initialize mixed undo/redo system
+        self.init_undo_system()
+        
         # Încarcă istoricul salvat
         self.load_history_from_file()
         
@@ -640,6 +693,16 @@ class PhotoEditorApp:
             self.image_processor = ImageProcessor()
         except Exception as e:
             messagebox.showerror("Error", f"Could not load AI models: {e}")
+    
+    def init_undo_system(self):
+        """Inițializează sistemul simplificat de undo/redo"""
+        self.undo_stack = []  # Lista de UndoState
+        self.redo_stack = []  # Lista de UndoState
+        self.max_operations = 30  # Numărul maxim de operații în istoric
+        
+        # Contoare pentru statistici
+        self.normal_operations = 0
+        self.ai_operations = 0
     
     def create_widgets(self):
         """Creates UI elements."""
@@ -1156,10 +1219,13 @@ class PhotoEditorApp:
             self.original_image = Image.open(file_path)
             self.current_image = self.original_image.copy()
             
-            # Initialize diff tracking
-            self._previous_image = self.current_image.copy()
+            # Resetează sistemul de undo/redo pentru noua imagine
+            self.undo_stack.clear()
+            self.redo_stack.clear()
+            self.normal_operations = 0
+            self.ai_operations = 0
             
-            # Clear undo/redo stacks when loading new image
+            # Compatibilitate cu sistemul vechi (dacă există)
             if hasattr(self, '_undo_stack'):
                 self._undo_stack.clear()
             if hasattr(self, '_undo_operations'):
@@ -1415,35 +1481,61 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             messagebox.showwarning("Warning", "No image loaded!")
     
     def update_undo_redo_buttons(self):
-        """Enables/disables Undo/Redo buttons and updates modification progress with memory info."""
-        undo_stack = getattr(self, '_undo_stack', [])
-        redo_stack = getattr(self, '_redo_stack', [])
-        # Undo
+        """Actualizează butoanele undo/redo cu statistici optimizate"""
+        # Verifică disponibilitatea operațiilor
+        can_undo = len(self.undo_stack) > 0
+        can_redo = len(self.redo_stack) > 0
+        
+        # Actualizează butoanele
         if hasattr(self, 'undo_btn'):
-            if undo_stack:
-                self.undo_btn.configure(state="normal")
-            else:
-                self.undo_btn.configure(state="disabled")
-        # Redo
+            self.undo_btn.configure(state="normal" if can_undo else "disabled")
         if hasattr(self, 'redo_btn'):
-            if redo_stack:
-                self.redo_btn.configure(state="normal")
-            else:
-                self.redo_btn.configure(state="disabled")
-        # Progress and memory info
+            self.redo_btn.configure(state="normal" if can_redo else "disabled")
+        
+        # Calculează statisticile memoriei
         if hasattr(self, 'edit_progress_label'):
-            total = len(undo_stack) + 1 + len(redo_stack) if (undo_stack or redo_stack) else 1
-            current = len(undo_stack) + 1 if (undo_stack or redo_stack) else 1
-            
-            # Add memory usage info
-            memory_info = self.get_memory_usage_info()
+            memory_info = self.get_optimized_memory_info()
+            total = len(self.undo_stack) + 1 + len(self.redo_stack) if (self.undo_stack or self.redo_stack) else 1
+            current = len(self.undo_stack) + 1 if (self.undo_stack or self.redo_stack) else 1
             
             if total > 1:
                 progress_text = f"{current}/{total}\n{memory_info}"
             else:
-                progress_text = memory_info if undo_stack or redo_stack else ""
+                progress_text = memory_info if self.undo_stack or self.redo_stack else ""
                 
             self.edit_progress_label.configure(text=progress_text)
+    
+    def get_optimized_memory_info(self) -> str:
+        """Calculează informațiile despre memoria optimizată"""
+        try:
+            undo_size = sum(entry.get_memory_size() for entry in self.undo_stack)
+            redo_size = sum(entry.get_memory_size() for entry in self.redo_stack)
+            
+            total_size_mb = (undo_size + redo_size) / (1024 * 1024)
+            
+            # Calculează economiile
+            normal_entries = [e for e in self.undo_stack if e.operation_type != OperationType.AI]
+            ai_entries = [e for e in self.undo_stack if e.operation_type == OperationType.AI]
+            
+            # Estimează ce ar fi fost cu sistemul vechi
+            if self.current_image:
+                full_image_size = (self.current_image.width * self.current_image.height * 3 * 4) / (1024 * 1024)
+                theoretical_size = full_image_size * len(self.undo_stack)
+                savings_percent = ((theoretical_size - total_size_mb) / theoretical_size * 100) if theoretical_size > 0 else 0
+            else:
+                savings_percent = 0
+            
+            info = f"Memory: {total_size_mb:.1f} MB"
+            if len(self.undo_stack) > 0:
+                info += f" | AI: {len(ai_entries)} | Normal: {len(normal_entries)}"
+                if savings_percent > 0:
+                    info += f" | Saved: {savings_percent:.0f}%"
+            
+            return info
+            
+        except Exception as e:
+            # Fallback pentru compatibilitate
+            return self.get_memory_usage_info() if hasattr(self, 'get_memory_usage_info') else "Memory: N/A"
 
     def run(self):
         """Start the application."""

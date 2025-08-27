@@ -1,3 +1,4 @@
+
 # AI Photo Editor - Requirements
 # Core dependencies
 customtkinter>=5.0.0
