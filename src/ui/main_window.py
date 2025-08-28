@@ -938,6 +938,10 @@ class PhotoEditorApp:
         crop_aspect_btn = ctk.CTkButton(control_frame, text="Aspect Ratio Crop", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#818cf8", hover_color="#6366f1", command=crop_aspect_ratio)
         crop_aspect_btn.pack(pady=5)
 
+        # --- Upscale Button ---
+        upscale_btn = ctk.CTkButton(control_frame, text="Upscale Image", width=150, height=38, font=("Arial", 13, "bold"), corner_radius=12, fg_color="#8b5cf6", hover_color="#7c3aed", command=self.upscale_image)
+        upscale_btn.pack(pady=5)
+
         # --- AI Operations Frame ---
         ai_frame = ctk.CTkFrame(control_frame)
         ai_frame.pack(pady=(10, 5), padx=5, fill="x")
@@ -945,14 +949,6 @@ class PhotoEditorApp:
         ai_title = ctk.CTkLabel(ai_frame, text="AI Operations", font=("Arial", 13, "bold"))
         ai_title.pack(pady=(10, 5))
         
-        upscale_btn = ctk.CTkButton(
-            ai_frame,
-            text="Upscale Image",
-            command=self.upscale_image,
-            width=140
-        )
-        upscale_btn.pack(pady=3)
-
         bg_remove_btn = ctk.CTkButton(
             ai_frame,
             text="Remove Background",
