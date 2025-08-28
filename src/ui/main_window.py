@@ -1011,10 +1011,6 @@ class PhotoEditorApp:
             width=140
         )
         gen_fill_simple_btn.pack(pady=(3, 10))
-
-        self.progress = ctk.CTkProgressBar(control_frame)
-        self.progress.pack(pady=20, padx=10, fill="x")
-        self.progress.set(0)
     def replace_background(self):
         """Removes the background and allows choosing a new background for the image."""
         if not self.current_image:
@@ -1158,8 +1154,9 @@ class PhotoEditorApp:
     
     def create_info_panel(self, parent):
         """Creates the information panel."""
-        info_frame = ctk.CTkFrame(parent)
+        info_frame = ctk.CTkFrame(parent, width=270)
         info_frame.pack(side="right", fill="y", padx=(10, 0))
+        info_frame.pack_propagate(False)  # Prevent resizing
         
         # Title
         title = ctk.CTkLabel(info_frame, text="Information", font=("Arial", 16, "bold"))
@@ -1167,13 +1164,20 @@ class PhotoEditorApp:
         
         # --- Undo/Redo buttons ---
         undo_redo_frame = ctk.CTkFrame(info_frame)
-        undo_redo_frame.pack(pady=(0, 10))
+        undo_redo_frame.pack(pady=(0, 5))
         self.undo_btn = ctk.CTkButton(undo_redo_frame, text="Undo", width=65, command=self.undo)
         self.redo_btn = ctk.CTkButton(undo_redo_frame, text="Redo", width=65, command=self.redo)
         self.undo_btn.pack(side="left", padx=(0, 5))
         self.redo_btn.pack(side="left", padx=(5, 0))
-        self.edit_progress_label = ctk.CTkLabel(undo_redo_frame, text="")
-        self.edit_progress_label.pack(side="left", padx=(10,0))
+        
+        # --- Memory info label (on separate line) ---
+        self.edit_progress_label = ctk.CTkLabel(info_frame, text="", font=("Arial", 10))
+        self.edit_progress_label.pack(pady=(0, 10))
+        
+        # --- Progress Bar ---
+        self.progress = ctk.CTkProgressBar(info_frame, width=230)
+        self.progress.pack(pady=(0, 10), padx=10, fill="x")
+        self.progress.set(0)
         
         # Text widget for displaying information (read-only)
         self.info_text = ctk.CTkTextbox(info_frame, width=250, height=400)
@@ -1706,6 +1710,51 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
         except:
             return "Unknown"
     
+    def create_thumbnail_preview(self, parent_frame, image_path):
+        """Creează un thumbnail preview pentru o imagine."""
+        try:
+            if os.path.exists(image_path) and self.is_valid_image_file(image_path):
+                # Încarcă imaginea
+                with Image.open(image_path) as img:
+                    # Creează thumbnail păstrând aspect ratio
+                    thumbnail_size = (70, 70)
+                    img.thumbnail(thumbnail_size, Image.LANCZOS)
+                    
+                    # Creează un fundal gri pentru thumbnail
+                    background = Image.new('RGB', thumbnail_size, (240, 240, 240))
+                    
+                    # Centrează thumbnail-ul pe fundal
+                    offset = ((thumbnail_size[0] - img.size[0]) // 2,
+                             (thumbnail_size[1] - img.size[1]) // 2)
+                    background.paste(img, offset)
+                    
+                    # Convertește pentru tkinter
+                    photo = ImageTk.PhotoImage(background)
+                    
+                    # Creează label cu imaginea
+                    thumbnail_label = tk.Label(parent_frame, image=photo, bg="lightgray", relief="sunken", bd=1)
+                    thumbnail_label.pack(fill="both", expand=True)
+                    
+                    # Important: păstrează referința la imagine
+                    thumbnail_label.image = photo
+                    
+                    return thumbnail_label
+            else:
+                # Fișier inexistent sau invalid - afișează placeholder
+                placeholder_label = tk.Label(parent_frame, text="No\nPreview", 
+                                           font=("Arial", 8), fg="gray", 
+                                           bg="lightgray", relief="sunken", bd=1)
+                placeholder_label.pack(fill="both", expand=True)
+                return placeholder_label
+                
+        except Exception as e:
+            # Eroare la încărcare - afișează placeholder cu eroare
+            error_label = tk.Label(parent_frame, text="Preview\nError", 
+                                 font=("Arial", 8), fg="red", 
+                                 bg="lightgray", relief="sunken", bd=1)
+            error_label.pack(fill="both", expand=True)
+            return error_label
+
     def show_file_history(self):
         """Afișează istoricul fișierelor salvate."""
         if not self.saved_files_history:
@@ -1715,9 +1764,9 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
         # Creează fereastra pentru istoric - mai mare și redimensionabilă
         history_win = tk.Toplevel(self.root)
         history_win.title("Recent Saved Files")
-        history_win.geometry("600x500")
+        history_win.geometry("750x600")
         history_win.resizable(True, True)
-        history_win.minsize(500, 400)
+        history_win.minsize(650, 500)
         
         # Título
         title_label = tk.Label(history_win, text="Recent Saved Files", font=("Arial", 14, "bold"))
@@ -1751,9 +1800,21 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
         
         import time
         for i, entry in enumerate(self.saved_files_history, 1):
-            # Frame pentru fiecare fișier
+            # Frame pentru fiecare fișier - horizontal layout
             file_frame = tk.Frame(scrollable_frame, relief="raised", bd=1)
             file_frame.pack(fill="x", pady=5, padx=5)
+            
+            # Frame pentru thumbnail (stânga)
+            thumbnail_frame = tk.Frame(file_frame, width=80, height=80)
+            thumbnail_frame.pack(side="left", padx=10, pady=5)
+            thumbnail_frame.pack_propagate(False)  # Prevent resizing
+            
+            # Încarcă și afișează thumbnail
+            thumbnail_label = self.create_thumbnail_preview(thumbnail_frame, entry['path'])
+            
+            # Frame pentru informații text (dreapta)
+            info_frame = tk.Frame(file_frame)
+            info_frame.pack(side="left", fill="both", expand=True, padx=10, pady=5)
             
             # Informații despre fișier
             file_info = f"{i}. {entry['name']}"
@@ -1761,16 +1822,16 @@ Size: {os.path.getsize(self.image_path) / (1024*1024):.2f} MB"""
             file_details = f"Size: {entry['size']} | Saved: {timestamp}"
             
             # Label cu numele fișierului
-            name_label = tk.Label(file_frame, text=file_info, font=("Arial", 11, "bold"), anchor="w")
-            name_label.pack(fill="x", padx=10, pady=(5, 0))
+            name_label = tk.Label(info_frame, text=file_info, font=("Arial", 11, "bold"), anchor="w")
+            name_label.pack(fill="x", pady=(0, 2))
             
             # Label cu detaliile
-            details_label = tk.Label(file_frame, text=file_details, font=("Arial", 9), fg="gray", anchor="w")
-            details_label.pack(fill="x", padx=10, pady=(0, 5))
+            details_label = tk.Label(info_frame, text=file_details, font=("Arial", 9), fg="gray", anchor="w")
+            details_label.pack(fill="x", pady=(0, 5))
             
             # Frame pentru butoane
-            btn_frame = tk.Frame(file_frame)
-            btn_frame.pack(fill="x", padx=10, pady=(0, 5))
+            btn_frame = tk.Frame(info_frame)
+            btn_frame.pack(fill="x")
             
             # Buton pentru a deschide fișierul
             open_btn = tk.Button(btn_frame, text="Open", width=15,
